@@ -2,9 +2,9 @@
 
 **Date:** 2026-06-12
 **Build:** ytfortv:dev-amd64 (commit 35c9312), deployed on NAS port **8487**
-**Service settings page:** `http://192.168.7.233:8487`
-**Browse UI:** `http://192.168.7.233:8487/browse`
-**API key:** `1c3cbb1a0e4f3a9267315d26c7206ed3`
+**Service settings page:** `http://<nas-ip>:8487`
+**Browse UI:** `http://<nas-ip>:8487/browse`
+**API key:** `<redacted-api-key>`
 **Dirs:** downloads `/data/ytfortv/downloads`, complete `/data/ytfortv/complete` (host `/volume1/data/ytfortv/...`, same `/data` mount Sonarr/Radarr use)
 
 ## Pre-flight (automated, done before UAT)
@@ -37,9 +37,9 @@ Every ytfortv release is tagged `480p ... WEB-DL`, which Sonarr reads as quality
 | Enable RSS | **OFF** |
 | Enable Automatic Search | **OFF** |
 | Enable Interactive Search | **ON** |
-| URL | `http://192.168.7.233:8487` |
+| URL | `http://<nas-ip>:8487` |
 | API Path | `/api` (the default) |
-| API Key | `1c3cbb1a0e4f3a9267315d26c7206ed3` |
+| API Key | `<redacted-api-key>` |
 | Categories | leave default (5030, 5040) |
 | Anime categories / Additional params / Tags | leave empty |
 
@@ -60,11 +60,11 @@ Then **Save**.
 |---|---|
 | Name | `YTforTV` |
 | Enable | ON |
-| Host | `192.168.7.233` |
+| Host | `<nas-ip>` |
 | Port | `8487` |
 | Use SSL | OFF |
 | URL Base | leave empty |
-| API Key | `1c3cbb1a0e4f3a9267315d26c7206ed3` |
+| API Key | `<redacted-api-key>` |
 | Username / Password | leave empty |
 | Category | `sonarr` |
 | Recent/Older Priority | Default |
@@ -118,7 +118,7 @@ Then **Save**.
 
 ## Step 5 — Radarr: indexer + client + movie search
 
-**Do:** repeat Steps 1–2 in Radarr (`http://192.168.7.233:7878`) with identical values **except** Download Client Category = `radarr`. Add the download client **first**, then in the indexer settings set **Download Client = YTforTV** (see Issue 1 — Radarr has the same multi-SAB routing problem). Also confirm the movie's quality profile allows **WEBDL-480p** (Radarr groups it under WEB 480p).
+**Do:** repeat Steps 1–2 in Radarr (`http://<nas-ip>:7878`) with identical values **except** Download Client Category = `radarr`. Add the download client **first**, then in the indexer settings set **Download Client = YTforTV** (see Issue 1 — Radarr has the same multi-SAB routing problem). Also confirm the movie's quality profile allows **WEBDL-480p** (Radarr groups it under WEB 480p).
 Then pick an old/obscure movie (add it if needed, untick search-on-add), open it → **Interactive Search**.
 
 **Expect:** rows named `Movie.Title.<Year>.YT.<Upload.Title>.<NN>min.480p.WEB-DL-<Channel>`; results ≥ 45 min only (clip floor). Optionally grab one and confirm download + import like Step 4.
@@ -131,7 +131,7 @@ Then pick an old/obscure movie (add it if needed, untick search-on-add), open it
 
 ## Step 6 — Browse UI scouting (optional)
 
-**Do:** open `http://192.168.7.233:8487/browse`, search any obscure title.
+**Do:** open `http://<nas-ip>:8487/browse`, search any obscure title.
 **Expect:** raw YouTube results (title/channel/length/views, links open YouTube), plus "Add to Sonarr"/"Add to Radarr" buttons. The add flow needs Sonarr/Radarr URL+API key set in ytfortv's settings page first — optional for this UAT.
 
 - **Result:** ✅ PASS — scouting search works; results table renders with YouTube links and lengths.
@@ -142,7 +142,7 @@ Then pick an old/obscure movie (add it if needed, untick search-on-add), open it
 
 ## Issues found
 
-1. **Grab routed to the wrong download client** (Step 4, 2026-06-12 11:47). With multiple SABnzbd-type clients configured, Sonarr sent the YTforTV NZB to iViewarr's fake SAB (port 8486), which rejected it (`not an iviewarr nzb`) → grab failed with a 500. Sonarr log: `SabnzbdProxy|Url: http://192.168.7.233:8486/api?mode=addfile...` for a YTforTV release.
+1. **Grab routed to the wrong download client** (Step 4, 2026-06-12 11:47). With multiple SABnzbd-type clients configured, Sonarr sent the YTforTV NZB to iViewarr's fake SAB (port 8486), which rejected it (`not an iviewarr nzb`) → grab failed with a 500. Sonarr log: `SabnzbdProxy|Url: http://<nas-ip>:8486/api?mode=addfile...` for a YTforTV release.
    **Root cause:** the YTforTV indexer had no pinned download client (`downloadClientId: 0`), unlike iViewarr/iPlayarr which are pinned to theirs. The pinning step was missing from the README and this runbook.
    **Fix:** Sonarr → Settings → Indexers → YTforTV → set **Download Client = YTforTV** → Save. README updated with this step.
    Side observation: the rejected-NZB safety check did its job — a foreign NZB was refused, not mis-downloaded.
