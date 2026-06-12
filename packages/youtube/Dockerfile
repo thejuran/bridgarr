@@ -7,11 +7,10 @@ COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-alpine
-# yt-dlp from PyPI (Alpine's package lags; the iView extractor needs freshness).
-# pycryptodomex: without it yt-dlp delegates AES-128 HLS (all of iView) to
-# ffmpeg, which reports no parseable progress — queue percentage sticks at 0.
+# yt-dlp from PyPI (Alpine's package lags; the YouTube extractor needs
+# freshness — see docker-entrypoint.sh for the on-start refresh).
 RUN apk add --no-cache python3 py3-pip ffmpeg \
- && pip install --no-cache-dir --break-system-packages yt-dlp pycryptodomex
+ && pip install --no-cache-dir --break-system-packages yt-dlp
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     PORT=8485 \
@@ -19,9 +18,10 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-COPY package.json ./
+COPY package.json docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 VOLUME /data
 EXPOSE 8485
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8485/healthz || exit 1
-CMD ["node", "dist/index.js"]
+CMD ["./docker-entrypoint.sh"]
