@@ -123,16 +123,22 @@ Then pick an old/obscure movie (add it if needed, untick search-on-add), open it
 
 **Expect:** rows named `Movie.Title.<Year>.YT.<Upload.Title>.<NN>min.480p.WEB-DL-<Channel>`; results ≥ 45 min only (clip floor). Optionally grab one and confirm download + import like Step 4.
 
-- **Indexer/client tests:** _pending_
-- **Movie used:** _pending_
-- **Result:** _pending_
+- **Indexer/client tests:** ✅ PASS (client category `movies` — also valid; fake SAB accepts both)
+- **Movie used:** The Mouse That Roared (1959)
+- **Result:** ✅ PASS — interactive search showed YTforTV rows with preview links; grab downloaded and imported (release: `Mouse.That.Roared.1959.YT...FULL.MOVIE.83min.480p.WEB-DL-AmericanBritishCinem`, youtube.com/watch?v=JIetdWpLPOA). Two setup hiccups on the way, both config-side:
+  - A `radarr` tag had been entered in the indexer's **Tags** field (instead of the client's Category) — a tagged indexer is skipped for untagged movies, so YTforTV silently never got queried ("8 active indexers" of 10). Fix: clear the Tags field.
+  - The **Download Client** pinning field is hidden behind **Show Advanced** in Radarr, so the first grab hit Issue 1's routing bug again (NZB went to iViewarr's fake SAB on 8486). Fix: Show Advanced → Download Client = YTforTV.
 
 ## Step 6 — Browse UI scouting (optional)
 
 **Do:** open `http://192.168.7.233:8487/browse`, search any obscure title.
 **Expect:** raw YouTube results (title/channel/length/views, links open YouTube), plus "Add to Sonarr"/"Add to Radarr" buttons. The add flow needs Sonarr/Radarr URL+API key set in ytfortv's settings page first — optional for this UAT.
 
-- **Result:** _pending_
+- **Result:** ✅ PASS — scouting search works; results table renders with YouTube links and lengths.
+
+## Verdict
+
+**UAT PASSED 2026-06-12** — all 6 steps green after fixes. Full chain verified on production Sonarr (Acorn Antiques S02E01 grab → download → import) and Radarr (The Mouse That Roared 1959 grab → download → import). Two product bugs were found and fixed during UAT (download-client routing docs, root-owned files → PUID/PGID), one improvement shipped (YouTube preview links via `<comments>`), and two *arr-side config traps documented (Tags field, Show Advanced pinning).
 
 ## Issues found
 

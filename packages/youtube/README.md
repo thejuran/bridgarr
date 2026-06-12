@@ -53,7 +53,8 @@ First run generates an API key — open `http://<host>:8485` to see it and adjus
 1. **Download client** → add **SABnzbd**: host `<host>`, port `8485`, API key from the YTforTV settings page, category `sonarr`.
 2. **Indexer** → add **Newznab**: URL `http://<host>:8485`, API path `/api`, same API key.
    - **Enable RSS: off. Enable Automatic Search: off. Enable Interactive Search: on.** This indexer is for hand-picked grabs only — automatic grabbing of YouTube results will eventually import a mislabeled upload.
-   - **Download Client: select the YTforTV client you just created.** If you run more than one SABnzbd-type client (a real SABnzbd, iViewarr, …), an unpinned indexer lets Sonarr hand YTforTV's NZBs to the wrong one, where they're rejected and the grab fails.
+   - **Download Client: select the YTforTV client you just created.** The field hides behind **Show Advanced**. If you run more than one SABnzbd-type client (a real SABnzbd, iViewarr, …), an unpinned indexer lets Sonarr hand YTforTV's NZBs to the wrong one, where they're rejected and the grab fails.
+   - Leave the indexer's **Tags** field empty — a tagged indexer is silently skipped for any series/movie that doesn't carry the same tag.
 3. **Quality profile**: results are tagged with a fixed quality (default `480p`, a deliberate under-promise — YouTube search doesn't expose resolution). Your profile must *allow* WEBDL-480p or every result will be rejected.
 
 ### Radarr
