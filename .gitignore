@@ -9,5 +9,8 @@ bridgarr-brief.md
 node_modules/
 dist/
 
+# Runtime data dir (settings.json holds API keys) — cwd-relative default DATA_DIR
+data/
+
 # macOS
 .DS_Store

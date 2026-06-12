@@ -1,0 +1,24 @@
+# Repo-root build context (.github/workflows/ci.yml builds with context: .)
+# Docker only reads .dockerignore at the context root — this is that file.
+node_modules
+**/node_modules
+dist
+**/dist
+data
+**/data
+.git
+.github
+.planning
+docs
+.turingmind
+.orchestrator.json
+bridgarr-brief.md
+.research
+.playwright-mcp
+.claude
+**/*.md
+**/test
+**/fixtures
+**/.gitignore
+**/eslint.config.js
+**/vitest.config.ts
