@@ -3,11 +3,12 @@ import { DownloadQueue } from './downloads/queue.js';
 import { DownloadRunner } from './downloads/runner.js';
 import { logger } from './logger.js';
 import { createServer } from './server.js';
+import { YouTubeSource } from './youtube/provider.js';
 
 const config = loadConfig();
 const queue = new DownloadQueue();
 const runner = new DownloadRunner({ queue, config });
-const app = createServer(config, { queue });
+const app = createServer(config, { queue, source: new YouTubeSource(config) });
 
 runner.start();
 

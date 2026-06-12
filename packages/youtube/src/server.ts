@@ -6,6 +6,15 @@ import { logger } from './logger.js';
 import { handleNewznab, type AppContext } from './newznab/router.js';
 import { buildNzb, decodeToken } from './nzb.js';
 import { handleSab } from './sabnzbd/router.js';
+import {
+  handleAddMoviePage,
+  handleAddMovieSubmit,
+  handleAddPage,
+  handleAddSubmit,
+  handleBrowsePage,
+  type BrowseContext,
+  type BrowseSearchFn,
+} from './ui/browse.js';
 import { handleSettingsSave, renderSettingsPage } from './ui/settings.js';
 import type { VideoSource } from './youtube/types.js';
 
@@ -13,6 +22,8 @@ export interface ServerDeps {
   /** YouTube search backend; injectable for tests. */
   source?: VideoSource;
   queue?: DownloadQueue;
+  /** Raw flat search for the browse page; injectable for tests. */
+  browseSearch?: BrowseSearchFn;
   /** Fetches used for Sonarr/Radarr API calls (browse add flows); injectable for tests. */
   sonarrFetch?: typeof fetch;
   radarrFetch?: typeof fetch;
@@ -44,6 +55,22 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
   app.post('/settings', express.urlencoded({ extended: false }), (req, res) => {
     handleSettingsSave(config, req, res);
   });
+
+  const browseCtx: BrowseContext = {
+    config,
+    searchFn: deps.browseSearch,
+    sonarrFetch: deps.sonarrFetch,
+    radarrFetch: deps.radarrFetch,
+  };
+  app.get('/browse', (req, res) => handleBrowsePage(browseCtx, req, res));
+  app.get('/browse/add', (req, res) => handleAddPage(browseCtx, req, res));
+  app.post('/browse/add', express.urlencoded({ extended: false }), (req, res) =>
+    handleAddSubmit(browseCtx, req, res),
+  );
+  app.get('/browse/add-movie', (req, res) => handleAddMoviePage(browseCtx, req, res));
+  app.post('/browse/add-movie', express.urlencoded({ extended: false }), (req, res) =>
+    handleAddMovieSubmit(browseCtx, req, res),
+  );
 
   // Sonarr talks to one /api endpoint for both roles: Newznab requests carry
   // ?t=..., SABnzbd requests carry ?mode=...

@@ -32,6 +32,7 @@ export function renderSettingsPage(config: Config, saved = false): string {
 </head>
 <body>
 <h1>YTforTV</h1>
+<p><a href="/browse">Search YouTube &amp; add shows →</a></p>
 ${saved ? '<p class="saved">Settings saved.</p>' : ''}
 <form method="post" action="/settings">
   <label>API key <span class="hint">(used by Sonarr/Radarr for both the indexer and download client)</span>
