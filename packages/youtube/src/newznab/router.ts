@@ -142,6 +142,9 @@ function toItem(
   return {
     title,
     nzbUrl: `${base}/nzb/${token}`,
+    // Interactive Search's info link → the watch page, so the upload can be
+    // previewed in a browser before grabbing.
+    commentsUrl: v.pageUrl,
     sizeBytes: v.durationSec * BYTES_PER_SEC,
     // Flat search carries no upload date; Sonarr rejects items without one.
     pubDate: new Date(),

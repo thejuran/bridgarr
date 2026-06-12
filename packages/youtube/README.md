@@ -36,19 +36,24 @@ ytfortv:
     - "8485:8485"
   environment:
     - DATA_DIR=/config
+    - PUID=1026                  # same user as Sonarr/Radarr — they must be able to
+    - PGID=100                   # move the finished files out of the complete dir
   volumes:
     - /volume1/docker/ytfortv:/config
     - /volume1/data:/data        # same path Sonarr/Radarr see, so imports need no remapping
   restart: unless-stopped
 ```
 
+**PUID/PGID matter:** without them the container runs as root, downloaded files end up root-owned, and Sonarr's import fails with *"Access to the path … is denied"*. Match whatever PUID/PGID your *arr containers use.
+
 First run generates an API key — open `http://<host>:8485` to see it and adjust settings. Set the **complete directory** to a path that Sonarr/Radarr can also see at the *same* path (e.g. `/data/ytfortv/complete`).
 
 ### Sonarr
 
-1. **Indexer** → add **Newznab**: URL `http://<host>:8485`, API path `/api`, API key from settings.
+1. **Download client** → add **SABnzbd**: host `<host>`, port `8485`, API key from the YTforTV settings page, category `sonarr`.
+2. **Indexer** → add **Newznab**: URL `http://<host>:8485`, API path `/api`, same API key.
    - **Enable RSS: off. Enable Automatic Search: off. Enable Interactive Search: on.** This indexer is for hand-picked grabs only — automatic grabbing of YouTube results will eventually import a mislabeled upload.
-2. **Download client** → add **SABnzbd**: host `<host>`, port `8485`, API key as above, category `sonarr`.
+   - **Download Client: select the YTforTV client you just created.** If you run more than one SABnzbd-type client (a real SABnzbd, iViewarr, …), an unpinned indexer lets Sonarr hand YTforTV's NZBs to the wrong one, where they're rejected and the grab fails.
 3. **Quality profile**: results are tagged with a fixed quality (default `480p`, a deliberate under-promise — YouTube search doesn't expose resolution). Your profile must *allow* WEBDL-480p or every result will be rejected.
 
 ### Radarr

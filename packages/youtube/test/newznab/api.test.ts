@@ -73,6 +73,15 @@ describe('newznab api', () => {
       expect(res.text).toContain('<newznab:attr name="category" value="5000"/>');
     });
 
+    it('links each release to its YouTube watch page for preview', async () => {
+      const res = await request(app).get(
+        `/api?t=tvsearch&q=Rumpole&season=1&ep=2&apikey=${key}`,
+      );
+      expect(res.text).toContain(
+        '<comments>https://www.youtube.com/watch?v=MmWv4voPEwE</comments>',
+      );
+    });
+
     it('sizes releases from duration so the Size column gauges length', async () => {
       const res = await request(app).get(
         `/api?t=tvsearch&q=Rumpole&season=1&ep=2&apikey=${key}`,

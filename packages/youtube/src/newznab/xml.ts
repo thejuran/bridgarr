@@ -37,6 +37,8 @@ export interface ReleaseItem {
   title: string;
   /** Absolute URL of the fake-NZB download (used as guid + enclosure). */
   nzbUrl: string;
+  /** Sonarr/Radarr surface this as the release's info link — the YouTube watch page. */
+  commentsUrl?: string;
   sizeBytes: number;
   /** Sonarr rejects feeds where any item lacks a valid pubDate. */
   pubDate: Date;
@@ -65,10 +67,13 @@ function renderItem(item: ReleaseItem): string {
   ];
   if (item.season !== null) attrs.push(`<newznab:attr name="season" value="${item.season}"/>`);
   if (item.episode !== null) attrs.push(`<newznab:attr name="episode" value="${item.episode}"/>`);
+  const comments = item.commentsUrl
+    ? `\n<comments>${escapeXml(item.commentsUrl)}</comments>`
+    : '';
   return `<item>
 <title>${escapeXml(item.title)}</title>
 <guid isPermaLink="true">${url}</guid>
-<link>${url}</link>
+<link>${url}</link>${comments}
 <pubDate>${item.pubDate.toUTCString()}</pubDate>
 <enclosure url="${url}" length="${item.sizeBytes}" type="application/x-nzb"/>
 ${attrs.join('\n')}
