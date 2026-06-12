@@ -1,0 +1,10 @@
+# Local-only planning/orchestration state (never published — see design spec)
+.planning/
+docs/superpowers/
+.turingmind/
+.orchestrator.json
+bridgarr-brief.md
+
+# Node
+node_modules/
+dist/
