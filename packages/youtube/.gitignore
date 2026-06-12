@@ -1,0 +1,24 @@
+# Dependencies & build
+node_modules/
+dist/
+
+# Runtime data (settings, downloads, queue state)
+data/
+
+# Reference repos & scratch (not part of this project)
+.research/
+.playwright-mcp/
+
+# Local tool state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.planning/HANDOFF.json
+.orchestrator.json
+.turingmind/
+
+# OS / logs
+.DS_Store
+*.log
+
+# GSD hook noise (pre-GSD project)
+.planning/
