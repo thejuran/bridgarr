@@ -1,11 +1,24 @@
+# syntax=docker/dockerfile:1
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build && npm prune --omit=dev
 
+# Root workspace files first (layer cached unless lockfile changes)
+COPY package.json package-lock.json tsconfig.base.json ./
+
+# Package manifest only — preserves cache when src changes
+COPY packages/youtube/package.json packages/youtube/
+
+# Install hoisted deps for the youtube workspace
+RUN npm ci --workspace=@bridgarr/youtube
+
+# Source files
+COPY packages/youtube/tsconfig.json packages/youtube/
+COPY packages/youtube/src packages/youtube/src
+
+# Build and prune devDeps from root node_modules (runs from /app — prunes hoisted node_modules)
+RUN npm run build -w @bridgarr/youtube && npm prune --omit=dev
+
+# ── Runtime stage ───────────────────────────────────────────────────────────
 FROM node:22-alpine
 # yt-dlp from PyPI (Alpine's package lags; the YouTube extractor needs
 # freshness — see docker-entrypoint.sh for the on-start refresh).
@@ -15,11 +28,16 @@ ENV NODE_ENV=production \
     DATA_DIR=/data \
     PORT=8485 \
     PYTHONUNBUFFERED=1
-WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY package.json docker-entrypoint.sh ./
+
+# WORKDIR matches what docker-entrypoint.sh expects: `node dist/index.js`
+WORKDIR /app/packages/youtube
+
+# Hoisted node_modules at /app — Node walks up from /app/packages/youtube to find them
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/packages/youtube/dist ./dist
+COPY packages/youtube/package.json packages/youtube/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
+
 VOLUME /data
 EXPOSE 8485
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s \
