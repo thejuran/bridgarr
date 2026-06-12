@@ -1,0 +1,14 @@
+node_modules
+dist
+data
+test
+fixtures
+.git
+.planning
+.research
+.playwright-mcp
+.claude
+*.md
+.gitignore
+eslint.config.js
+vitest.config.ts
