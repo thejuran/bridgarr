@@ -1,5 +1,5 @@
 {
-  "name": "ytfortv",
+  "name": "@bridgarr/youtube",
   "version": "0.1.0",
   "description": "Search YouTube from Sonarr/Radarr for obscure broadcast TV & movies — Newznab indexer + SABnzbd emulation + yt-dlp downloads",
   "type": "module",
