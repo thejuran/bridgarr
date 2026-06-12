@@ -29,9 +29,9 @@ YTforTV is a bridge: it pretends to be a **Newznab indexer** and a **SABnzbd dow
 
 ```yaml
 # docker-compose.yml (Synology/NAS)
-ytfortv:
-  image: ghcr.io/thejuran/ytfortv:dev
-  container_name: ytfortv
+bridgarr-youtube:
+  image: ghcr.io/thejuran/bridgarr-youtube:dev
+  container_name: bridgarr-youtube
   ports:
     - "8485:8485"
   environment:
@@ -85,11 +85,14 @@ Same as Sonarr (category `radarr`). Movie searches extract the year from Radarr'
 
 ## Development
 
+This package lives in the [bridgarr](https://github.com/thejuran/bridgarr) monorepo;
+run commands from the repo root with the `-w @bridgarr/youtube` workspace selector:
+
 ```sh
-npm ci
-npm run dev        # tsx watch, port 8485
-npm test           # vitest
-npm run typecheck && npm run lint
+npm install                              # from repo root — installs all workspaces
+npm run dev -w @bridgarr/youtube         # tsx watch, port 8485
+npm test -w @bridgarr/youtube            # vitest
+npm run typecheck -w @bridgarr/youtube && npm run lint -w @bridgarr/youtube
 ```
 
 Tests run against recorded yt-dlp fixtures — no network needed.
