@@ -15,11 +15,11 @@ import {
   type BrowseSearchFn,
 } from './ui/browse.js';
 import { handleSettingsSave, renderSettingsPage } from './ui/settings.js';
-import type { VideoSource } from './youtube/types.js';
+import type { SourceBridge } from '@bridgarr/core';
 
 export interface ServerDeps {
   /** YouTube search backend; injectable for tests. */
-  source?: VideoSource;
+  source?: SourceBridge;
   queue?: DownloadQueue;
   /** Raw flat search for the browse page; injectable for tests. */
   browseSearch?: BrowseSearchFn;

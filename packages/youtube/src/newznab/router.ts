@@ -4,12 +4,12 @@ import { logger } from '../logger.js';
 import { extractSearchYear, stripSearchYear } from '@bridgarr/core';
 import { movieReleaseName, tvReleaseName } from '../naming/release.js';
 import { encodeToken } from '@bridgarr/core';
-import type { VideoSource, YtVideo } from '../youtube/types.js';
+import type { BridgeResult, SourceBridge } from '@bridgarr/core';
 import { capsXml, errorXml, searchRss, type ReleaseItem } from '@bridgarr/core';
 
 export interface AppContext {
   config: Config;
-  source: VideoSource | null;
+  source: SourceBridge | null;
 }
 
 // ~2 Mbps proxy rate: flat search has no size, so Size ≈ 15 MB/min and the
@@ -75,7 +75,7 @@ async function tvSearch(ctx: AppContext, req: Request): Promise<string> {
         searchTitle,
         season,
         episode,
-        uploadTitle: v.uploadTitle,
+        uploadTitle: v.sourceTitle,
         channel: v.channel,
         durationSec: v.durationSec,
         quality: releaseQuality,
@@ -99,7 +99,7 @@ async function movieSearch(ctx: AppContext, req: Request): Promise<string> {
       const release = movieReleaseName({
         title,
         year,
-        uploadTitle: v.uploadTitle,
+        uploadTitle: v.sourceTitle,
         channel: v.channel,
         durationSec: v.durationSec,
         quality: releaseQuality,
@@ -115,8 +115,8 @@ async function movieSearch(ctx: AppContext, req: Request): Promise<string> {
 
 async function search(
   ctx: AppContext,
-  run: (source: VideoSource) => Promise<YtVideo[]>,
-): Promise<YtVideo[]> {
+  run: (source: SourceBridge) => Promise<BridgeResult[]>,
+): Promise<BridgeResult[]> {
   if (!ctx.source) return [];
   try {
     return await run(ctx.source);
@@ -129,13 +129,13 @@ async function search(
 function toItem(
   ctx: AppContext,
   base: string,
-  v: YtVideo,
+  v: BridgeResult,
   title: string,
   rest: Pick<ReleaseItem, 'season' | 'episode' | 'categories'>,
 ): ReleaseItem {
   const token = encodeToken({
     provider: 'youtube',
-    episodeId: v.videoId,
+    episodeId: v.itemId,
     title,
     pageUrl: v.pageUrl,
   });
