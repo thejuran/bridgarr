@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Request, Response } from 'express';
 import { DownloadQueue } from '../../src/downloads/queue.js';
-import { SabSettings, SabLogger, handleSab } from '../../src/sabnzbd/router.js';
+import type { SabSettings, SabLogger } from '../../src/sabnzbd/router.js';
+import { handleSab } from '../../src/sabnzbd/router.js';
 import { buildNzb, type NzbPayload } from '../../src/nzb.js';
+
+interface UploadedFile {
+  buffer: Buffer;
+  originalname: string;
+}
 
 const testPayload: NzbPayload = {
   provider: 'youtube',
@@ -17,7 +23,7 @@ const testSettings: SabSettings = {
   metaType: 'ytfortv',
 };
 
-function makeReq(query: Record<string, string>, files?: Express.Multer.File[]): Request {
+function makeReq(query: Record<string, string>, files?: UploadedFile[]): Request {
   return {
     query,
     params: {},
@@ -74,10 +80,10 @@ describe('handleSab - addfile', () => {
   it('queues a job when given a valid NZB; invokes queue.add; metaType is injected (not hardcoded)', () => {
     const queue = new DownloadQueue();
     const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
-    const file = {
+    const file: UploadedFile = {
       buffer: Buffer.from(nzbXml),
       originalname: 'test.nzb',
-    } as Express.Multer.File;
+    };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: 'sonarr' }, [file]);
     const res = makeRes();
 
@@ -91,10 +97,10 @@ describe('handleSab - addfile', () => {
 
   it('rejects an unparseable NZB with an error derived from ctx.settings.metaType', () => {
     const queue = new DownloadQueue();
-    const file = {
+    const file: UploadedFile = {
       buffer: Buffer.from('<html>not an nzb</html>'),
       originalname: 'junk.nzb',
-    } as Express.Multer.File;
+    };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: 'sonarr' }, [file]);
     const res = makeRes();
 
@@ -107,10 +113,10 @@ describe('handleSab - addfile', () => {
 
   it('calls logger.warn with no-op fallback when no logger provided (does not throw)', () => {
     const queue = new DownloadQueue();
-    const file = {
+    const file: UploadedFile = {
       buffer: Buffer.from('<html>not an nzb</html>'),
       originalname: 'junk.nzb',
-    } as Express.Multer.File;
+    };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile' }, [file]);
     const res = makeRes();
 
@@ -124,10 +130,10 @@ describe('handleSab - addfile', () => {
     const queue = new DownloadQueue();
     const warnSpy = vi.fn();
     const mockLogger: SabLogger = { warn: warnSpy, info: vi.fn() };
-    const file = {
+    const file: UploadedFile = {
       buffer: Buffer.from('<html>not an nzb</html>'),
       originalname: 'junk.nzb',
-    } as Express.Multer.File;
+    };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile' }, [file]);
     const res = makeRes();
 

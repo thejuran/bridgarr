@@ -1,19 +1,48 @@
 import type { Request, Response } from 'express';
-import type { Config } from '../config.js';
 import type { DownloadJob, DownloadQueue } from '../downloads/queue.js';
-import { logger } from '../logger.js';
-import { parseNzb } from '@bridgarr/core';
+import { parseNzb } from '../nzb.js';
 
+/** Minimal uploaded-file shape that multer (and test stubs) satisfy. */
+interface UploadedFile {
+  buffer: Buffer;
+  originalname: string;
+}
+
+/**
+ * Minimal settings shape the SABnzbd router needs from the host app.
+ * The bridge supplies apiKey, completeDir, and metaType — core encodes
+ * no bridge-specific knowledge.
+ */
+export interface SabSettings {
+  /** API key checked against every incoming SABnzbd request. */
+  apiKey: string;
+  /** Absolute path reported as SABnzbd complete_dir. */
+  completeDir: string;
+  /** Bridge identifier injected into NZB parsing (e.g. the bridge name string). */
+  metaType: string;
+}
+
+/**
+ * Optional injectable logger. When omitted, a no-op fallback is used.
+ * Satisfied structurally by pino loggers.
+ */
+export interface SabLogger {
+  warn(obj: object, msg: string): void;
+  info(obj: object, msg: string): void;
+}
+
+/** Context passed to handleSab by the host app. */
 export interface SabContext {
-  config: Config;
+  settings: SabSettings;
   queue: DownloadQueue;
+  logger?: SabLogger;
 }
 
 const VERSION = '4.3.0';
 const CATEGORIES = ['*', 'sonarr', 'radarr', 'tv', 'movies'];
 
 export function handleSab(ctx: SabContext, req: Request, res: Response): void {
-  if (param(req, 'apikey') !== ctx.config.settings.apiKey) {
+  if (param(req, 'apikey') !== ctx.settings.apiKey) {
     res.json({ status: false, error: 'API Key Incorrect' });
     return;
   }
@@ -26,7 +55,7 @@ export function handleSab(ctx: SabContext, req: Request, res: Response): void {
       res.json({
         config: {
           misc: {
-            complete_dir: ctx.config.settings.completeDir,
+            complete_dir: ctx.settings.completeDir,
             history_retention: 'all',
           },
           categories: CATEGORIES.map((name, order) => ({
@@ -81,7 +110,8 @@ function handleHistory(ctx: SabContext, req: Request, res: Response): void {
 }
 
 function handleAddFile(ctx: SabContext, req: Request, res: Response): void {
-  const files = (req.files ?? []) as Express.Multer.File[];
+  const log = ctx.logger ?? { warn: () => {}, info: () => {} };
+  const files = ((req as unknown as Record<string, unknown>)['files'] ?? []) as UploadedFile[];
   const upload = files[0];
   if (!upload) {
     res.json({ status: false, error: 'no nzb file in request' });
@@ -89,14 +119,14 @@ function handleAddFile(ctx: SabContext, req: Request, res: Response): void {
   }
   let payload;
   try {
-    payload = parseNzb(upload.buffer.toString('utf8'), { metaType: 'ytfortv' });
+    payload = parseNzb(upload.buffer.toString('utf8'), { metaType: ctx.settings.metaType });
   } catch (err) {
-    logger.warn({ err, filename: upload.originalname }, 'addfile rejected: unparseable nzb');
-    res.json({ status: false, error: 'not a ytfortv nzb' });
+    log.warn({ err, filename: upload.originalname }, 'addfile rejected: unparseable nzb');
+    res.json({ status: false, error: `not a ${ctx.settings.metaType} nzb` });
     return;
   }
   const job = ctx.queue.add(payload, param(req, 'cat') ?? 'sonarr');
-  logger.info({ nzoId: job.nzoId, title: payload.title }, 'queued download');
+  log.info({ nzoId: job.nzoId, title: payload.title }, 'queued download');
   res.json({ status: true, nzo_ids: [job.nzoId] });
 }
 

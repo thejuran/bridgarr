@@ -4,8 +4,7 @@ import type { Config } from './config.js';
 import { DownloadQueue } from '@bridgarr/core';
 import { logger } from './logger.js';
 import { handleNewznab, type AppContext } from './newznab/router.js';
-import { buildNzb, decodeToken } from '@bridgarr/core';
-import { handleSab } from './sabnzbd/router.js';
+import { buildNzb, decodeToken, handleSab } from '@bridgarr/core';
 import {
   handleAddMoviePage,
   handleAddMovieSubmit,
@@ -81,7 +80,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
       return;
     }
     if (typeof req.query.mode === 'string') {
-      handleSab({ config, queue }, req, res);
+      handleSab({ settings: { apiKey: config.settings.apiKey, completeDir: config.settings.completeDir, metaType: 'ytfortv' }, queue, logger }, req, res);
       return;
     }
     res.status(400).json({ error: 'unknown api request' });
