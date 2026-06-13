@@ -74,12 +74,20 @@ export interface ReleaseItem {
   categories: number[];
 }
 
-export function searchRss(items: ReleaseItem[]): string {
+/**
+ * Render the Newznab search RSS feed.
+ *
+ * @param items The release items to render.
+ * @param title Channel `<title>` — the bridge's feed identity. Defaults to
+ *   `'YTforTV'` so the reference app's output stays byte-identical (D-05); a
+ *   second bridge built on core should pass its own name (CORE-04 / D-07).
+ */
+export function searchRss(items: ReleaseItem[], title = 'YTforTV'): string {
   const rendered = items.map(renderItem).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
 <channel>
-<title>YTforTV</title>
+<title>${escapeXml(title)}</title>
 <newznab:response offset="0" total="${items.length}"/>
 ${rendered}
 </channel>
