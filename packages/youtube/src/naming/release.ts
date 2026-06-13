@@ -1,4 +1,4 @@
-import { normalizeShowTitle } from '../matcher/normalize.js';
+import { normalizeShowTitle } from '@bridgarr/core';
 
 /**
  * Release naming for YouTube uploads. The requested show/season/episode (or

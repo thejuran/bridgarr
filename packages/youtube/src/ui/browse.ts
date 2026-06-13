@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import type { Config } from '../config.js';
 import { logger } from '../logger.js';
-import { extractSearchYear, stripSearchYear } from '../matcher/normalize.js';
+import { extractSearchYear, stripSearchYear } from '@bridgarr/core';
 import { RadarrClient, type RadarrMovie } from '../radarr/client.js';
 import {
   SonarrClient,

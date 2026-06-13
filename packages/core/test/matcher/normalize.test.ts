@@ -3,6 +3,7 @@ import {
   extractSearchYear,
   normalizeShowTitle,
   queryMatches,
+  stripSearchYear,
   titlesMatch,
 } from '../../src/matcher/normalize.js';
 
@@ -74,5 +75,17 @@ describe('queryMatches', () => {
 
   it('treats an empty query as match-all', () => {
     expect(queryMatches('', 'Hard Quiz')).toBe(true);
+  });
+});
+
+describe('stripSearchYear', () => {
+  it('drops a trailing disambiguation year from a query', () => {
+    expect(stripSearchYear('Bluey 2018')).toBe('Bluey');
+    expect(stripSearchYear('Fracture (2007)')).toBe('Fracture');
+  });
+
+  it('returns the input unchanged when there is no trailing year', () => {
+    expect(stripSearchYear('Bluey')).toBe('Bluey');
+    expect(stripSearchYear('Mystery Road')).toBe('Mystery Road');
   });
 });

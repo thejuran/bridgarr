@@ -1,6 +1,6 @@
 import type { Config } from '../config.js';
 import { logger } from '../logger.js';
-import { normalizeShowTitle } from '../matcher/normalize.js';
+import { normalizeShowTitle } from '@bridgarr/core';
 import { buildMovieQueries, buildTvQueries } from './queries.js';
 import { searchYouTube, type FlatEntry } from './search.js';
 import type { VideoSource, YtVideo } from './types.js';

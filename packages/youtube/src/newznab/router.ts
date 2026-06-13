@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
 import type { Config } from '../config.js';
 import { logger } from '../logger.js';
-import { extractSearchYear, stripSearchYear } from '../matcher/normalize.js';
+import { extractSearchYear, stripSearchYear } from '@bridgarr/core';
 import { movieReleaseName, tvReleaseName } from '../naming/release.js';
-import { encodeToken } from '../nzb.js';
+import { encodeToken } from '@bridgarr/core';
 import type { VideoSource, YtVideo } from '../youtube/types.js';
 import { capsXml, errorXml, searchRss, type ReleaseItem } from './xml.js';
 
