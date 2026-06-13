@@ -40,8 +40,7 @@ describe('YouTubeSource', () => {
       const searchFn = vi.fn<SearchFn>().mockResolvedValue(rumpole);
       const source = sourceWith(searchFn);
 
-      expect(await source.searchTv('Rumpole of the Bailey')).toEqual([]);
-      expect(await source.searchTv('Rumpole of the Bailey', 1)).toEqual([]);
+      expect(await source.searchTv('Rumpole of the Bailey', 0, 0)).toEqual([]);
       expect(searchFn).not.toHaveBeenCalled();
     });
 
@@ -61,7 +60,7 @@ describe('YouTubeSource', () => {
     it('dedupes by video id when variants return overlapping results', async () => {
       const results = await sourceWith(alwaysRumpole).searchTv('Rumpole of the Bailey', 1, 2);
 
-      const ids = results.map((v) => v.videoId);
+      const ids = results.map((v) => v.itemId);
       expect(new Set(ids).size).toBe(ids.length);
       expect(ids.length).toBeGreaterThan(0);
     });
@@ -71,7 +70,7 @@ describe('YouTubeSource', () => {
 
       expect(results.length).toBeGreaterThan(0);
       for (const v of results) {
-        expect(v.uploadTitle.toLowerCase()).toContain('rumpole');
+        expect(v.sourceTitle.toLowerCase()).toContain('rumpole');
       }
     });
 
@@ -79,13 +78,13 @@ describe('YouTubeSource', () => {
       updateSettings(config, { titleFilter: false });
       const results = await sourceWith(alwaysRumpole).searchTv('Rumpole of the Bailey', 1, 2);
 
-      expect(results.some((v) => v.uploadTitle.includes('Blandings'))).toBe(true);
+      expect(results.some((v) => v.sourceTitle.includes('Blandings'))).toBe(true);
     });
 
     it('ranks the upload matching the requested S/E above other episodes', async () => {
       const results = await sourceWith(alwaysRumpole).searchTv('Rumpole of the Bailey', 1, 2);
 
-      expect(results[0]!.uploadTitle.toLowerCase()).toContain('s1e2');
+      expect(results[0]!.sourceTitle.toLowerCase()).toContain('s1e2');
     });
 
     it('drops results shorter than the TV duration floor', async () => {
@@ -99,7 +98,7 @@ describe('YouTubeSource', () => {
         2,
       );
 
-      expect(results.map((v) => v.videoId)).toEqual(['full']);
+      expect(results.map((v) => v.itemId)).toEqual(['full']);
     });
 
     it('drops livestreams, upcoming premieres, and null durations', async () => {
@@ -115,7 +114,7 @@ describe('YouTubeSource', () => {
         2,
       );
 
-      expect(results.map((v) => v.videoId)).toEqual(['ok']);
+      expect(results.map((v) => v.itemId)).toEqual(['ok']);
     });
 
     it('survives a failing search variant', async () => {
@@ -142,7 +141,7 @@ describe('YouTubeSource', () => {
       expect(results).toHaveLength(50);
     });
 
-    it('maps flat entries to YtVideo with a watch-page fallback URL', async () => {
+    it('maps flat entries to BridgeResult with a watch-page fallback URL', async () => {
       const entries: FlatEntry[] = [
         {
           id: 'xyz',
@@ -159,11 +158,10 @@ describe('YouTubeSource', () => {
       );
 
       expect(v).toEqual({
-        videoId: 'xyz',
-        uploadTitle: 'Rumpole of the Bailey S01E02',
+        itemId: 'xyz',
+        sourceTitle: 'Rumpole of the Bailey S01E02',
         channel: 'Some Uploader',
         durationSec: 3099,
-        viewCount: 12,
         pageUrl: 'https://www.youtube.com/watch?v=xyz',
       });
     });
@@ -180,7 +178,7 @@ describe('YouTubeSource', () => {
       for (const v of results) {
         expect(v.durationSec).toBeGreaterThanOrEqual(45 * 60);
       }
-      expect(results.some((v) => /trailer/i.test(v.uploadTitle))).toBe(false);
+      expect(results.some((v) => /trailer/i.test(v.sourceTitle))).toBe(false);
     });
 
     it('ranks "full movie" uploads first', async () => {
@@ -193,7 +191,7 @@ describe('YouTubeSource', () => {
         1959,
       );
 
-      expect(results.map((v) => v.videoId)).toEqual(['full', 'plain']);
+      expect(results.map((v) => v.itemId)).toEqual(['full', 'plain']);
     });
 
     it('searches without year variants when no year is known', async () => {

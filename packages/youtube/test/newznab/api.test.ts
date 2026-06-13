@@ -4,16 +4,15 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig, updateSettings, type Config } from '../../src/config.js';
-import { DownloadQueue, parseNzb } from '@bridgarr/core';
+import { DownloadQueue, parseNzb, type BridgeResult } from '@bridgarr/core';
 import { createServer } from '../../src/server.js';
-import type { VideoSource, YtVideo } from '../../src/youtube/types.js';
+import type { SourceBridge } from '@bridgarr/core';
 
-const video = (over: Partial<YtVideo> = {}): YtVideo => ({
-  videoId: 'MmWv4voPEwE',
-  uploadTitle: 'Rumpole of the Bailey S1E2  the alternative society',
+const video = (over: Partial<BridgeResult> = {}): BridgeResult => ({
+  itemId: 'MmWv4voPEwE',
+  sourceTitle: 'Rumpole of the Bailey S1E2  the alternative society',
   channel: 'o p i u m 2',
   durationSec: 3099,
-  viewCount: 215225,
   pageUrl: 'https://www.youtube.com/watch?v=MmWv4voPEwE',
   ...over,
 });
@@ -35,7 +34,7 @@ describe('newznab api', () => {
       searchTv: vi.fn().mockResolvedValue([video()]),
       searchMovie: vi.fn().mockResolvedValue([video()]),
     };
-    app = createServer(config, { source: source as unknown as VideoSource, queue });
+    app = createServer(config, { source: source as unknown as SourceBridge, queue });
   });
 
   afterEach(() => {
