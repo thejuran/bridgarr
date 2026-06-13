@@ -152,8 +152,10 @@ const apiDispatch = async (req: Request, res: Response): Promise<void> => {
 
     let results: Awaited<ReturnType<typeof source.searchTv>> = [];
     const rawTitle = String(req.query.q ?? '');
-    const season   = Number(req.query.season) || 1;
-    const episode  = Number(req.query.ep)     || 1;
+    // Use an explicit presence check, NOT `|| 1`: Sonarr searches Specials
+    // with season=0, and `0 || 1` would wrongly coerce it to season 1.
+    const season   = req.query.season !== undefined ? Number(req.query.season) : 1;
+    const episode  = req.query.ep     !== undefined ? Number(req.query.ep)     : 1;
 
     if (t === 'tvsearch' || t === 'search') {
       results = await source.searchTv(rawTitle, season, episode);
