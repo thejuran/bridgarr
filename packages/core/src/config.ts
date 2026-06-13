@@ -14,14 +14,25 @@ export function generateApiKey(): string {
  * If the file does not exist, returns `defaults` unchanged.
  * If the file exists, persisted keys override defaults; missing keys fall back to defaults.
  *
+ * If the file exists but is unreadable or contains malformed JSON, logs a
+ * warning and returns `defaults` rather than throwing — a corrupt or
+ * half-written settings.json must not crash startup.
+ *
  * @param settingsPath - Absolute path to the settings JSON file.
  * @param defaults - Default settings object; also determines the return type.
  * @returns Merged settings object.
  */
 export function loadSettings<T extends object>(settingsPath: string, defaults: T): T {
   if (fs.existsSync(settingsPath)) {
-    const persisted = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Partial<T>;
-    return { ...defaults, ...persisted };
+    try {
+      const persisted = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Partial<T>;
+      return { ...defaults, ...persisted };
+    } catch (err) {
+      // Corrupt or half-written settings file — fall back to defaults instead of
+      // crashing the whole bridge at startup. Never swallow silently.
+      console.warn(`loadSettings: failed to read or parse ${settingsPath}, using defaults`, err);
+      return defaults;
+    }
   }
   return defaults;
 }

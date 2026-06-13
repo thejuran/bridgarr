@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateApiKey, loadSettings, saveSettings } from '../src/config.js';
 
 describe('generateApiKey', () => {
@@ -61,6 +61,18 @@ describe('loadSettings', () => {
     expect(result.apiKey).toBe('default-key');
     expect(result.port).toBe(8485);
     expect(result.label).toBe('hello');
+  });
+
+  it('returns defaults (without throwing) when the file is malformed JSON', () => {
+    const settingsPath = path.join(tmpDir, 'settings.json');
+    fs.writeFileSync(settingsPath, '{ not valid json');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = loadSettings<TestSettings>(settingsPath, defaults);
+
+    expect(result).toEqual(defaults);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 
