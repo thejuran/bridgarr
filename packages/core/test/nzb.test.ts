@@ -38,4 +38,14 @@ describe('NZB roundtrip', () => {
   it('rejects XML without a ytfortv meta tag', () => {
     expect(() => parseNzb('<?xml version="1.0"?><nzb></nzb>', opts)).toThrow('not a ytfortv nzb');
   });
+
+  it('escapes XML-special metaType consistently so build→parse still round-trips', () => {
+    const special = { metaType: 'a&b<c"d' };
+    const xml = buildNzb(payload, special);
+    // metaType must not appear raw anywhere in the emitted XML.
+    expect(xml).not.toContain('a&b<c"d');
+    expect(xml).toContain('a&amp;b&lt;c&quot;d');
+    // ...and parseNzb recovers the payload despite the escaping.
+    expect(parseNzb(xml, special)).toEqual(payload);
+  });
 });

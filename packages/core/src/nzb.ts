@@ -46,7 +46,11 @@ function isPayload(value: unknown): value is NzbPayload {
 /** A minimal structurally-valid NZB carrying the payload in a head meta tag. */
 export function buildNzb(payload: NzbPayload, opts: NzbOptions): string {
   const token = encodeToken(payload);
-  const m = opts.metaType;
+  // Escape metaType at every XML interpolation site. 'ytfortv' is unchanged
+  // (no XML-special chars → byte-identical output, D-05), but a future bridge
+  // with special chars in metaType would otherwise emit malformed NZB. parseNzb
+  // matches this same escaped form (see below), so the round-trip holds.
+  const m = escapeXml(opts.metaType);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.1//EN" "http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd">
 <nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
@@ -68,7 +72,10 @@ export function buildNzb(payload: NzbPayload, opts: NzbOptions): string {
 /** Recover the payload from an NZB we generated. */
 export function parseNzb(xml: string, opts: NzbOptions): NzbPayload {
   const metaType = opts.metaType;
-  const metaRe = new RegExp(`<meta type="${escapeRegExp(metaType)}">([A-Za-z0-9_-]+)<\\/meta>`);
+  // buildNzb writes the attribute as escapeXml(metaType); match that exact form
+  // so the round-trip holds even when metaType contains XML-special chars.
+  // For 'ytfortv' escapeXml is a no-op, so this is unchanged.
+  const metaRe = new RegExp(`<meta type="${escapeRegExp(escapeXml(metaType))}">([A-Za-z0-9_-]+)<\\/meta>`);
   const token = xml.match(metaRe)?.[1];
   if (!token) throw new Error(`not a ${metaType} nzb`);
   return decodeToken(token);
