@@ -96,7 +96,11 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
       return;
     }
     res.type('application/x-nzb');
-    res.setHeader('Content-Disposition', `attachment; filename="${payload.title}.nzb"`);
+    // Strip CR/LF/quote from the (token-derived) title before it enters the
+    // header — prevents Content-Disposition header injection (CWE-113). The
+    // filename is cosmetic, so dropping these characters is safe.
+    const safeName = payload.title.replace(/[\r\n"]/g, '');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.nzb"`);
     res.send(buildNzb(payload, { metaType: 'ytfortv' }));
   });
 
