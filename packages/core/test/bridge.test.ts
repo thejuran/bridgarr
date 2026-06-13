@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BridgeResult, ReleaseIdentity, SourceBridge } from '../../src/bridge.js';
+import type { BridgeResult, ReleaseIdentity, SourceBridge } from '../src/bridge.js';
 
 // ---------------------------------------------------------------------------
 // Compile-time contract: a minimal SourceBridge (no optional hooks) is valid.
@@ -73,13 +73,13 @@ describe('SourceBridge contract', () => {
   describe('optional hooks', () => {
     it('a bridge without infoUrl satisfies SourceBridge (compile-time; verified above)', () => {
       // The FakeBridge class not having infoUrl and still passing tsc is the proof.
-      // This runtime check just confirms the instance was constructed without error.
-      const bridge = new FakeBridge();
+      // Cast via the interface to check the optional hook is absent at runtime.
+      const bridge: SourceBridge = new FakeBridge();
       expect(bridge.infoUrl).toBeUndefined();
     });
 
     it('a bridge without releaseName satisfies SourceBridge', () => {
-      const bridge = new FakeBridge();
+      const bridge: SourceBridge = new FakeBridge();
       expect(bridge.releaseName).toBeUndefined();
     });
 
