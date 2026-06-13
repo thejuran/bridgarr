@@ -4,7 +4,10 @@
     "outDir": "dist",
     "declaration": true,
     "declarationDir": "dist",
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@bridgarr/core": ["./src/index.ts"] },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src", "test"]
 }
