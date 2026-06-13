@@ -157,9 +157,10 @@ const apiDispatch = async (req: Request, res: Response): Promise<void> => {
     const season   = req.query.season !== undefined ? Number(req.query.season) : 1;
     const episode  = req.query.ep     !== undefined ? Number(req.query.ep)     : 1;
 
-    if (t === 'tvsearch' || t === 'search') {
+    if (t === 'tvsearch') {
       results = await source.searchTv(rawTitle, season, episode);
-    } else if (t === 'movie') {
+    } else if (t === 'movie' || t === 'search') {
+      // Radarr text-searches send t=search (not t=movie) — route to movie.
       results = await source.searchMovie(rawTitle);
     } else {
       res.type('application/xml').send(errorXml(201, `Unknown function: ${t}`));
