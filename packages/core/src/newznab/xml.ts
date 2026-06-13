@@ -1,4 +1,4 @@
-import { escapeXml } from '@bridgarr/core';
+import { escapeXml } from '../nzb.js';
 
 export function errorXml(code: number, description: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -7,9 +7,43 @@ export function errorXml(code: number, description: string): string {
 
 export interface CapsOptions {
   title: string;
+  /**
+   * Optional parameterized categories (CORE-04). When omitted, renders the
+   * default ytfortv blocks (Movies/2000 + TV/5000) byte-identically (D-05).
+   */
+  categories?: {
+    movies?: Array<{ id: number; name: string }>;
+    tv?: Array<{ id: number; name: string }>;
+  };
+}
+
+function renderDefaultCategories(): string {
+  return `    <category id="2000" name="Movies">
+      <subcat id="2030" name="Movies/SD"/>
+      <subcat id="2040" name="Movies/HD"/>
+    </category>
+    <category id="5000" name="TV">
+      <subcat id="5030" name="TV/SD"/>
+      <subcat id="5040" name="TV/HD"/>
+    </category>`;
+}
+
+function renderCustomCategories(categories: NonNullable<CapsOptions['categories']>): string {
+  const blocks: string[] = [];
+  for (const cat of categories.movies ?? []) {
+    blocks.push(`    <category id="${cat.id}" name="${escapeXml(cat.name)}">\n    </category>`);
+  }
+  for (const cat of categories.tv ?? []) {
+    blocks.push(`    <category id="${cat.id}" name="${escapeXml(cat.name)}">\n    </category>`);
+  }
+  return blocks.join('\n');
 }
 
 export function capsXml(opts: CapsOptions): string {
+  const cats =
+    opts.categories === undefined
+      ? renderDefaultCategories()
+      : renderCustomCategories(opts.categories);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
   <server title="${escapeXml(opts.title)}"/>
@@ -21,14 +55,7 @@ export function capsXml(opts: CapsOptions): string {
     <movie-search available="yes" supportedParams="q"/>
   </searching>
   <categories>
-    <category id="2000" name="Movies">
-      <subcat id="2030" name="Movies/SD"/>
-      <subcat id="2040" name="Movies/HD"/>
-    </category>
-    <category id="5000" name="TV">
-      <subcat id="5030" name="TV/SD"/>
-      <subcat id="5040" name="TV/HD"/>
-    </category>
+${cats}
   </categories>
 </caps>`;
 }
