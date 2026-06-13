@@ -36,12 +36,21 @@ describe('YouTubeSource', () => {
   const alwaysRumpole: SearchFn = () => Promise.resolve(rumpole);
 
   describe('searchTv', () => {
-    it('returns nothing without a season and episode (no name to stamp)', async () => {
+    it('returns nothing for negative season/episode (guard against bad numbering)', async () => {
       const searchFn = vi.fn<SearchFn>().mockResolvedValue(rumpole);
       const source = sourceWith(searchFn);
 
-      expect(await source.searchTv('Rumpole of the Bailey', 0, 0)).toEqual([]);
+      expect(await source.searchTv('Rumpole of the Bailey', -1, 2)).toEqual([]);
       expect(searchFn).not.toHaveBeenCalled();
+    });
+
+    it('searches season 0 Specials (S00) rather than dropping them', async () => {
+      const searchFn = vi.fn<SearchFn>().mockResolvedValue([]);
+      const source = sourceWith(searchFn);
+
+      await source.searchTv('Rumpole of the Bailey', 0, 1);
+      // Season 0 is a real Sonarr Specials request; it must reach the fan-out.
+      expect(searchFn).toHaveBeenCalled();
     });
 
     it('fans out over all query variants', async () => {

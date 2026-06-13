@@ -28,9 +28,11 @@ export class YouTubeSource implements SourceBridge {
   }
 
   async searchTv(title: string, season: number, episode: number): Promise<BridgeResult[]> {
-    // No episode → nothing to stamp a release name with (season packs are a
-    // later milestone); the Newznab layer handles the empty-q connection test.
-    if (!season || !episode) return [];
+    // The Newznab router already gates absence (season/episode === null) and the
+    // empty-q connection test before we get here, so season/episode are real,
+    // non-negative numbers. Guard only against negatives — season 0 (Sonarr
+    // Specials) and episode 0 are legitimate and must NOT be dropped.
+    if (season < 0 || episode < 0) return [];
     const entries = await this.fanOut(buildTvQueries(title, season, episode), TV_RESULTS_PER_QUERY);
     return this.pipeline(entries, title, this.config.settings.minTvMinutes, tvBoost(season, episode));
   }
