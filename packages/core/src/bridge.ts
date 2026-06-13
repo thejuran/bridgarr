@@ -108,8 +108,10 @@ export interface ReleaseIdentity {
  * may return `[]` from `searchTv`; a TV-only bridge may return `[]` from
  * `searchMovie`.
  *
- * **Optional hooks:** `infoUrl` and `releaseName`. Omitting them does not break
- * core — defaults are applied automatically (see each hook's doc).
+ * **Optional hooks (RESERVED):** `infoUrl` and `releaseName` define the intended
+ * extension points, but the reference integration does NOT consume them yet —
+ * implementing them currently has no effect (see each hook's doc). The
+ * orchestration that calls them is future work.
  *
  * **Boundary one-liner:** core knows how to talk to the *arrs and how to
  * compare titles; each bridge knows how its site organises content.
@@ -152,13 +154,18 @@ export interface SourceBridge {
   searchMovie(title: string, year?: number): Promise<BridgeResult[]>;
 
   /**
-   * **Optional.** Return the URL to display as the "info link" in
-   * Sonarr/Radarr's Interactive Search (the globe icon that opens in the
-   * browser). When omitted, core uses `result.pageUrl`.
+   * **Optional — RESERVED, NOT YET CONSUMED.** Intended to return the URL to
+   * display as the "info link" in Sonarr/Radarr's Interactive Search (the globe
+   * icon that opens in the browser).
    *
-   * Override when the source has a separate human-browsable page that is
-   * distinct from the yt-dlp-fetchable URL — for example, a series info page
-   * versus a direct player URL.
+   * The reference integration does not call this hook yet: today the app always
+   * uses `result.pageUrl` for the info link, so implementing `infoUrl` has no
+   * effect. Wiring the consumer is future work. The hook remains part of the
+   * contract shape so bridges can be written against the final interface.
+   *
+   * Intended use once wired: override when the source has a separate
+   * human-browsable page distinct from the yt-dlp-fetchable URL — for example, a
+   * series info page versus a direct player URL.
    *
    * @param result The BridgeResult whose info URL is needed.
    * @returns A fully-qualified URL string.
@@ -166,17 +173,22 @@ export interface SourceBridge {
   infoUrl?(result: BridgeResult): string;
 
   /**
-   * **Optional.** Produce the scene-style release name that Sonarr/Radarr
-   * show in search results and use as the download filename.
+   * **Optional — RESERVED, NOT YET CONSUMED.** Intended to produce the
+   * scene-style release name that Sonarr/Radarr show in search results and use
+   * as the download filename.
    *
-   * When omitted, core/app applies a default naming strategy derived from
-   * `result.sourceTitle`, `result.channel`, and the identity
-   * (season/episode numbers or year) — for example:
+   * The reference integration does not call this hook yet: today the app always
+   * derives release names with its own naming logic, so implementing
+   * `releaseName` has no effect. Wiring the consumer (and the default naming
+   * strategy core would apply when the hook is omitted) is future work. The hook
+   * remains part of the contract shape so bridges can be written against the
+   * final interface.
+   *
+   * Intended use once wired: override when your source site requires a different
+   * naming convention (e.g. a different quality token, a different slug format,
+   * or title sanitisation specific to that site's upload style). A scene-format
+   * name looks like
    * `Show.Name.S01E02.YT.Source.Title.52min.480p.WEB-DL-Channel`.
-   *
-   * Override this hook when your source site requires a different naming
-   * convention (e.g. a different quality token, a different slug format, or
-   * title sanitisation specific to that site's upload style).
    *
    * **Contract:**
    * - Return a dot-delimited scene-format name, e.g.
