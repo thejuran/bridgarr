@@ -3,3 +3,5 @@ export * from './nzb.js';
 export * from './newznab/xml.js';
 export * from './downloads/queue.js';
 export * from './sabnzbd/router.js';
+export * from './healthz.js';
+export * from './config.js';

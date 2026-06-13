@@ -1,6 +1,6 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { generateApiKey, loadSettings, saveSettings } from '@bridgarr/core';
 
 /** User-editable settings, persisted to <dataDir>/settings.json. */
 export interface Settings {
@@ -45,7 +45,7 @@ const SETTINGS_FILE = 'settings.json';
 
 function defaultSettings(dataDir: string): Settings {
   return {
-    apiKey: crypto.randomBytes(16).toString('hex'),
+    apiKey: generateApiKey(),
     downloadDir: path.join(dataDir, 'downloads'),
     completeDir: path.join(dataDir, 'complete'),
     quality: '1080p',
@@ -71,12 +71,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   fs.mkdirSync(dataDir, { recursive: true });
 
   const settingsPath = path.join(dataDir, SETTINGS_FILE);
-  let settings = defaultSettings(dataDir);
-  if (fs.existsSync(settingsPath)) {
-    const persisted = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Partial<Settings>;
-    settings = { ...settings, ...persisted };
-  }
-  writeSettings(settingsPath, settings);
+  const settings = loadSettings<Settings>(settingsPath, defaultSettings(dataDir));
+  saveSettings(settingsPath, settings);
 
   return {
     host: env.HOST ?? '0.0.0.0',
@@ -89,10 +85,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 /** Merge a partial update into settings and persist. Returns the new settings. */
 export function updateSettings(config: Config, patch: Partial<Settings>): Settings {
   config.settings = { ...config.settings, ...patch };
-  writeSettings(path.join(config.dataDir, SETTINGS_FILE), config.settings);
+  saveSettings(path.join(config.dataDir, SETTINGS_FILE), config.settings);
   return config.settings;
-}
-
-function writeSettings(settingsPath: string, settings: Settings): void {
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
 }

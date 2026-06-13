@@ -4,7 +4,7 @@ import type { Config } from './config.js';
 import { DownloadQueue } from '@bridgarr/core';
 import { logger } from './logger.js';
 import { handleNewznab, type AppContext } from './newznab/router.js';
-import { buildNzb, decodeToken, handleSab } from '@bridgarr/core';
+import { buildNzb, decodeToken, handleSab, healthzHandler } from '@bridgarr/core';
 import {
   handleAddMoviePage,
   handleAddMovieSubmit,
@@ -44,9 +44,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     next();
   });
 
-  app.get('/healthz', (_req, res) => {
-    res.json({ status: 'ok', service: 'ytfortv' });
-  });
+  app.get('/healthz', healthzHandler('ytfortv'));
 
   app.get('/', (req, res) => {
     res.type('html').send(renderSettingsPage(config, req.query.saved === '1'));

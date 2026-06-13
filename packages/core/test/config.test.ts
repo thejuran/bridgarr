@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { generateApiKey, loadSettings, saveSettings } from '../../src/config.js';
+import { generateApiKey, loadSettings, saveSettings } from '../src/config.js';
 
 describe('generateApiKey', () => {
   it('returns a 32-character lowercase hex string', () => {
