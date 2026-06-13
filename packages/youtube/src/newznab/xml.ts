@@ -1,4 +1,4 @@
-import { escapeXml } from '../nzb.js';
+import { escapeXml } from '@bridgarr/core';
 
 export function errorXml(code: number, description: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>

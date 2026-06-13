@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { NzbPayload } from '../nzb.js';
+import type { NzbPayload } from '@bridgarr/core';
 
 export type JobStatus = 'queued' | 'downloading' | 'completed' | 'failed';
 

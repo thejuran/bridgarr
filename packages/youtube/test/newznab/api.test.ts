@@ -5,7 +5,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig, updateSettings, type Config } from '../../src/config.js';
 import { DownloadQueue } from '../../src/downloads/queue.js';
-import { parseNzb } from '../../src/nzb.js';
+import { parseNzb } from '@bridgarr/core';
 import { createServer } from '../../src/server.js';
 import type { VideoSource, YtVideo } from '../../src/youtube/types.js';
 
@@ -171,7 +171,7 @@ describe('newznab api', () => {
 
     const nzb = await request(app).get(nzbPath);
     expect(nzb.headers['content-type']).toMatch(/x-nzb/);
-    const payload = parseNzb(nzb.text);
+    const payload = parseNzb(nzb.text, { metaType: 'ytfortv' });
     expect(payload).toMatchObject({
       provider: 'youtube',
       episodeId: 'MmWv4voPEwE',

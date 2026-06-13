@@ -4,7 +4,7 @@ import type { Config } from './config.js';
 import { DownloadQueue } from './downloads/queue.js';
 import { logger } from './logger.js';
 import { handleNewznab, type AppContext } from './newznab/router.js';
-import { buildNzb, decodeToken } from './nzb.js';
+import { buildNzb, decodeToken } from '@bridgarr/core';
 import { handleSab } from './sabnzbd/router.js';
 import {
   handleAddMoviePage,
@@ -100,7 +100,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     }
     res.type('application/x-nzb');
     res.setHeader('Content-Disposition', `attachment; filename="${payload.title}.nzb"`);
-    res.send(buildNzb(payload));
+    res.send(buildNzb(payload, { metaType: 'ytfortv' }));
   });
 
   return app;

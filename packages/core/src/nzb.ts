@@ -13,6 +13,10 @@ export interface NzbPayload {
   pageUrl: string;
 }
 
+export interface NzbOptions {
+  metaType: string;
+}
+
 export function encodeToken(payload: NzbPayload): string {
   return Buffer.from(JSON.stringify(payload)).toString('base64url');
 }
@@ -39,23 +43,22 @@ function isPayload(value: unknown): value is NzbPayload {
   );
 }
 
-const META_RE = /<meta type="ytfortv">([A-Za-z0-9_-]+)<\/meta>/;
-
 /** A minimal structurally-valid NZB carrying the payload in a head meta tag. */
-export function buildNzb(payload: NzbPayload): string {
+export function buildNzb(payload: NzbPayload, opts: NzbOptions): string {
   const token = encodeToken(payload);
+  const m = opts.metaType;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.1//EN" "http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd">
 <nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
   <head>
-    <meta type="ytfortv">${token}</meta>
+    <meta type="${m}">${token}</meta>
   </head>
-  <file poster="ytfortv" date="0" subject="${escapeXml(payload.title)}">
+  <file poster="${m}" date="0" subject="${escapeXml(payload.title)}">
     <groups>
-      <group>alt.binaries.ytfortv</group>
+      <group>alt.binaries.${m}</group>
     </groups>
     <segments>
-      <segment bytes="1024" number="1">placeholder@ytfortv</segment>
+      <segment bytes="1024" number="1">placeholder@${m}</segment>
     </segments>
   </file>
 </nzb>
@@ -63,9 +66,11 @@ export function buildNzb(payload: NzbPayload): string {
 }
 
 /** Recover the payload from an NZB we generated. */
-export function parseNzb(xml: string): NzbPayload {
-  const token = xml.match(META_RE)?.[1];
-  if (!token) throw new Error('not a ytfortv nzb');
+export function parseNzb(xml: string, opts: NzbOptions): NzbPayload {
+  const metaType = opts.metaType;
+  const metaRe = new RegExp(`<meta type="${escapeRegExp(metaType)}">([A-Za-z0-9_-]+)<\\/meta>`);
+  const token = xml.match(metaRe)?.[1];
+  if (!token) throw new Error(`not a ${metaType} nzb`);
   return decodeToken(token);
 }
 
@@ -76,4 +81,8 @@ export function escapeXml(text: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;');
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

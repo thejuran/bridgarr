@@ -5,7 +5,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig, type Config } from '../../src/config.js';
 import { DownloadQueue } from '../../src/downloads/queue.js';
-import { buildNzb, type NzbPayload } from '../../src/nzb.js';
+import { buildNzb, type NzbPayload } from '@bridgarr/core';
 import { createServer } from '../../src/server.js';
 
 const payload: NzbPayload = {
@@ -37,7 +37,7 @@ describe('sabnzbd api', () => {
   const addFile = () =>
     request(app)
       .post(`/api?mode=addfile&apikey=${key}&cat=sonarr&output=json`)
-      .attach('name', Buffer.from(buildNzb(payload)), 'release.nzb');
+      .attach('name', Buffer.from(buildNzb(payload, { metaType: 'ytfortv' })), 'release.nzb');
 
   it('rejects a wrong apikey', async () => {
     const res = await request(app).get('/api?mode=version&apikey=wrong');

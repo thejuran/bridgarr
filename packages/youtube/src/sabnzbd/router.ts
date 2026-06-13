@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { Config } from '../config.js';
 import type { DownloadJob, DownloadQueue } from '../downloads/queue.js';
 import { logger } from '../logger.js';
-import { parseNzb } from '../nzb.js';
+import { parseNzb } from '@bridgarr/core';
 
 export interface SabContext {
   config: Config;
@@ -89,7 +89,7 @@ function handleAddFile(ctx: SabContext, req: Request, res: Response): void {
   }
   let payload;
   try {
-    payload = parseNzb(upload.buffer.toString('utf8'));
+    payload = parseNzb(upload.buffer.toString('utf8'), { metaType: 'ytfortv' });
   } catch (err) {
     logger.warn({ err, filename: upload.originalname }, 'addfile rejected: unparseable nzb');
     res.json({ status: false, error: 'not a ytfortv nzb' });
