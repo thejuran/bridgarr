@@ -4,8 +4,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig, type Config } from '../../src/config.js';
-import { DownloadQueue } from '../../src/downloads/queue.js';
-import { buildNzb, type NzbPayload } from '@bridgarr/core';
+import { DownloadQueue, buildNzb, type NzbPayload } from '@bridgarr/core';
 import { createServer } from '../../src/server.js';
 
 const payload: NzbPayload = {

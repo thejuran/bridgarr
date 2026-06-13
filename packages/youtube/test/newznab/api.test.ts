@@ -4,8 +4,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig, updateSettings, type Config } from '../../src/config.js';
-import { DownloadQueue } from '../../src/downloads/queue.js';
-import { parseNzb } from '@bridgarr/core';
+import { DownloadQueue, parseNzb } from '@bridgarr/core';
 import { createServer } from '../../src/server.js';
 import type { VideoSource, YtVideo } from '../../src/youtube/types.js';
 

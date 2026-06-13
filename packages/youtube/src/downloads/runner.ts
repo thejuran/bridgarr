@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config.js';
 import { logger } from '../logger.js';
-import type { DownloadJob, DownloadQueue } from './queue.js';
+import type { DownloadJob, DownloadQueue } from '@bridgarr/core';
 
 export type SpawnLike = (
   cmd: string,

@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response } from 'express';
 import multer from 'multer';
 import type { Config } from './config.js';
-import { DownloadQueue } from './downloads/queue.js';
+import { DownloadQueue } from '@bridgarr/core';
 import { logger } from './logger.js';
 import { handleNewznab, type AppContext } from './newznab/router.js';
 import { buildNzb, decodeToken } from '@bridgarr/core';

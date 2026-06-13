@@ -4,9 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig, updateSettings, type Config } from '../../src/config.js';
-import { DownloadQueue } from '../../src/downloads/queue.js';
+import { DownloadQueue, type NzbPayload } from '@bridgarr/core';
 import { DownloadRunner, type SpawnLike } from '../../src/downloads/runner.js';
-import type { NzbPayload } from '../../src/nzb.js';
 
 class FakeProc extends EventEmitter {
   stdout = new EventEmitter();

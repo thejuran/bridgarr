@@ -1,5 +1,5 @@
 import { loadConfig } from './config.js';
-import { DownloadQueue } from './downloads/queue.js';
+import { DownloadQueue } from '@bridgarr/core';
 import { DownloadRunner } from './downloads/runner.js';
 import { logger } from './logger.js';
 import { createServer } from './server.js';
