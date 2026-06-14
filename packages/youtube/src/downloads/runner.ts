@@ -29,6 +29,27 @@ const UNIT_BYTES: Record<string, number> = {
 };
 
 /**
+ * Validates that a pageUrl is a YouTube URL with an https: protocol.
+ * Throws with a descriptive message on any violation so the caller's catch
+ * block routes the error to failJob without additional plumbing.
+ */
+function assertYouTubeUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid pageUrl: ${url}`);
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`pageUrl protocol not allowed: ${parsed.protocol}`);
+  }
+  const host = parsed.hostname.replace(/^www\./, '');
+  if (host !== 'youtube.com' && host !== 'youtu.be') {
+    throw new Error(`pageUrl host not allowed: ${parsed.hostname}`);
+  }
+}
+
+/**
  * Drives queued jobs through yt-dlp: spawn with a job-scoped temp dir, parse
  * progress lines, move the finished file to completeDir/<category>, and record
  * the outcome on the queue. Extractor failures surface as failed history
@@ -89,6 +110,7 @@ export class DownloadRunner {
     const { nzoId } = job;
     let proc: ChildProcess;
     try {
+      assertYouTubeUrl(job.payload.pageUrl);
       fs.mkdirSync(jobDir, { recursive: true });
       proc = this.spawnFn(this.ytdlpPath, this.buildArgs(job, jobDir), {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -148,7 +170,7 @@ export class DownloadRunner {
     const { quality, cookiesFile } = this.config.settings;
     if (quality !== 'best') args.push('-S', `res:${quality.replace('p', '')}`);
     if (cookiesFile) args.push('--cookies', cookiesFile);
-    args.push('-o', path.join(jobDir, `${job.payload.title}.%(ext)s`));
+    args.push('-o', path.join(jobDir, '%(id)s.%(ext)s'));
     args.push(job.payload.pageUrl);
     return args;
   }

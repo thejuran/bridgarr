@@ -70,7 +70,11 @@ describe('DownloadRunner', () => {
     expect(calls).toHaveLength(1);
     const { args } = calls[0]!;
     expect(args).toContain('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-    expect(args.join(' ')).toContain(path.join(job.nzoId, 'Bluey.S01E01.Test.1080p.WEB-DL'));
+    // -o arg contains the job-scoped dir (not the title)
+    expect(args.join(' ')).toContain(path.join(config.settings.downloadDir, job.nzoId));
+    // -o template is the fixed %(id)s.%(ext)s form (no title in path)
+    const oIdx = args.indexOf('-o');
+    expect(args[oIdx + 1]).toMatch(/%\(id\)s\.%\(ext\)s$/);
     expect(queue.get(job.nzoId)!.status).toBe('downloading');
   });
 
@@ -197,6 +201,53 @@ describe('DownloadRunner', () => {
     const j = queue.get(job.nzoId)!;
     expect(j.status).toBe('failed');
     expect(j.failMessage).toContain('yt-dlp not found');
+  });
+
+  it('rejects a non-YouTube pageUrl and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'https://evil.com/video' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    const j = queue.get(job.nzoId)!;
+    expect(j.status).toBe('failed');
+    expect(j.failMessage).toContain('not allowed');
+  });
+
+  it('rejects a file:// pageUrl and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'file:///etc/passwd' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    expect(queue.get(job.nzoId)!.status).toBe('failed');
+  });
+
+  it('rejects a malformed (non-URL) pageUrl and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'not-a-url' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    expect(queue.get(job.nzoId)!.status).toBe('failed');
+  });
+
+  it('rejects file://youtube.com (allowlisted host, non-https protocol) and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'file://youtube.com/etc/passwd' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    expect(queue.get(job.nzoId)!.status).toBe('failed');
+  });
+
+  it('rejects ftp://youtube.com (allowlisted host, non-https protocol) and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'ftp://youtube.com/x' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    expect(queue.get(job.nzoId)!.status).toBe('failed');
   });
 
 });
