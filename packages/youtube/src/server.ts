@@ -71,7 +71,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
 
   // Sonarr talks to one /api endpoint for both roles: Newznab requests carry
   // ?t=..., SABnzbd requests carry ?mode=...
-  const upload = multer({ storage: multer.memoryStorage() });
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1_000_000, files: 1 } });
   const apiDispatch = async (req: Request, res: Response) => {
     if (typeof req.query.t === 'string') {
       await handleNewznab(ctx, req, res);

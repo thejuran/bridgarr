@@ -39,7 +39,7 @@ COPY packages/youtube/package.json packages/youtube/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 VOLUME /data
-EXPOSE 8485
+EXPOSE ${PORT:-8485}
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s \
-  CMD wget -qO- http://127.0.0.1:8485/healthz || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-8485}/healthz" || exit 1
 CMD ["./docker-entrypoint.sh"]

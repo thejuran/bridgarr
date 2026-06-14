@@ -12,6 +12,7 @@ fi
 # HOME points at the config volume so yt-dlp's cache has a writable spot.
 export HOME="${DATA_DIR:-/data}"
 if [ "${PUID:-0}" != "0" ]; then
+  chown -R "${PUID}:${PGID:-${PUID}}" "${DATA_DIR:-/data}"
   exec su-exec "${PUID}:${PGID:-${PUID}}" node dist/index.js
 fi
 exec node dist/index.js
