@@ -15,6 +15,7 @@ A typed, tested substrate for building \*arr source bridges — plus the YouTube
 - [Bridges](#bridges)
 - [How is this different from other projects](#how-is-this-different-from-other-projects)
 - [FAQ](#faq)
+- [Trust model](#trust-model)
 - [Known limitations](#known-limitations)
 - [Contributing](#contributing)
 - [License](#license)
@@ -280,6 +281,22 @@ Two methods: `searchTv(title, season, episode)` and `searchMovie(title, year?)`.
 ### Does it work with Radarr for movies?
 
 Yes. The `?t=movie` Newznab search type and the `searchMovie` bridge method cover movie lookups. The `ReleaseItem` shape and the SABnzbd grab flow are identical for movies and TV.
+
+---
+
+## Trust model
+
+**bridgarr-youtube is designed for a trusted LAN, not the public internet.**
+
+The settings page (`/`) and the fake-NZB endpoint (`/nzb/:token`) are intentionally
+unauthenticated — they are meant to be reachable from your local \*arr containers, not
+from the broader internet. The settings page renders your API key in plaintext and allows
+changing download directories and \*arr credentials without authentication.
+
+Do not expose bridgarr-youtube's port to the internet (no reverse proxy without auth,
+no port-forward to the NAS from your router). Run it inside Docker on the same network
+as Sonarr/Radarr. The `/api` endpoint is API-key-gated for \*arr-to-bridge
+communication; that's the only public surface.
 
 ---
 
