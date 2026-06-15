@@ -5,18 +5,21 @@ WORKDIR /app
 # Root workspace files first (layer cached unless lockfile changes)
 COPY package.json package-lock.json tsconfig.base.json ./
 
-# Package manifest only — preserves cache when src changes
+# Package manifests only — preserves cache when src changes
+COPY packages/core/package.json packages/core/
 COPY packages/youtube/package.json packages/youtube/
 
-# Install hoisted deps for the youtube workspace
-RUN npm ci --workspace=@bridgarr/youtube
+# Install hoisted deps for all workspaces (workspace symlinks + hoisting)
+RUN npm ci
 
-# Source files
+# Source files — core must be built before youtube
+COPY packages/core/tsconfig.json packages/core/tsconfig.build.json packages/core/
+COPY packages/core/src packages/core/src
 COPY packages/youtube/tsconfig.json packages/youtube/
 COPY packages/youtube/src packages/youtube/src
 
-# Build and prune devDeps from root node_modules (runs from /app — prunes hoisted node_modules)
-RUN npm run build -w @bridgarr/youtube && npm prune --omit=dev
+# Build core then youtube (workspaces respects dependency order), then prune devDeps
+RUN npm run build --workspaces --if-present && npm prune --omit=dev
 
 # ── Runtime stage ───────────────────────────────────────────────────────────
 FROM node:22-alpine
@@ -34,6 +37,9 @@ WORKDIR /app/packages/youtube
 
 # Hoisted node_modules at /app — Node walks up from /app/packages/youtube to find them
 COPY --from=build /app/node_modules /app/node_modules
+# core package.json + dist so the workspace symlink (@bridgarr/core -> ../../packages/core) resolves
+COPY --from=build /app/packages/core/package.json /app/packages/core/
+COPY --from=build /app/packages/core/dist /app/packages/core/dist
 COPY --from=build /app/packages/youtube/dist ./dist
 COPY packages/youtube/package.json packages/youtube/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
