@@ -125,7 +125,12 @@ function handleAddFile(ctx: SabContext, req: Request, res: Response): void {
     res.json({ status: false, error: `not a ${ctx.settings.metaType} nzb` });
     return;
   }
-  const job = ctx.queue.add(payload, param(req, 'cat') ?? 'sonarr');
+  // Validate the client-supplied category against the allowlist before it
+  // reaches path.join(completeDir, category) in the runner — an unchecked value
+  // like `../../tmp` would escape completeDir (CWE-22). Fall back to 'sonarr'.
+  const requestedCat = param(req, 'cat');
+  const category = requestedCat && CATEGORIES.includes(requestedCat) ? requestedCat : 'sonarr';
+  const job = ctx.queue.add(payload, category);
   log.info({ nzoId: job.nzoId, title: payload.title }, 'queued download');
   res.json({ status: true, nzo_ids: [job.nzoId] });
 }

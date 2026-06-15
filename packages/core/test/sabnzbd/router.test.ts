@@ -95,6 +95,32 @@ describe('handleSab - addfile', () => {
     expect(queue.activeJobs()).toHaveLength(1);
   });
 
+  it('sanitizes a path-traversal cat= to the default (would otherwise escape completeDir, CWE-22)', () => {
+    const queue = new DownloadQueue();
+    const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
+    const file: UploadedFile = { buffer: Buffer.from(nzbXml), originalname: 'test.nzb' };
+    const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: '../../tmp/evil' }, [file]);
+    const res = makeRes();
+
+    handleSab({ settings: testSettings, queue }, req as Request, res as unknown as Response);
+
+    // The runner builds path.join(completeDir, job.category); an unchecked cat would
+    // escape completeDir. The category must fall back to the allowlisted default.
+    expect(queue.activeJobs()[0]!.category).toBe('sonarr');
+  });
+
+  it('preserves a cat= value that is on the allowlist', () => {
+    const queue = new DownloadQueue();
+    const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
+    const file: UploadedFile = { buffer: Buffer.from(nzbXml), originalname: 'test.nzb' };
+    const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: 'radarr' }, [file]);
+    const res = makeRes();
+
+    handleSab({ settings: testSettings, queue }, req as Request, res as unknown as Response);
+
+    expect(queue.activeJobs()[0]!.category).toBe('radarr');
+  });
+
   it('rejects an unparseable NZB with an error derived from ctx.settings.metaType', () => {
     const queue = new DownloadQueue();
     const file: UploadedFile = {
