@@ -86,7 +86,7 @@ export function buildBridge(): ReturnType<typeof express> {
         return;
       }
 
-      let results: BridgeResult[] = [];
+      let results: BridgeResult[];
       const rawTitle = String(req.query.q ?? '');
       // Use an explicit presence check, NOT `|| 1`: Sonarr searches Specials
       // with season=0, and `0 || 1` would wrongly coerce it to season 1.
