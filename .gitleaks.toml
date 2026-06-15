@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "bridgarr-app-api-key"
+description = "Bridgarr/ytfortv app API key (32-char lowercase hex in code/doc context)"
+regex = '''[`'"]([0-9a-f]{32})[`'"]'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["api", "key", "API"]
