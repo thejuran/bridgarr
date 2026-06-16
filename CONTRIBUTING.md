@@ -7,7 +7,7 @@ PRs welcome.
 | Package | Path | Role |
 |---------|------|------|
 | `@bridgarr/core` | `packages/core` | Substrate / toolkit library — the shared Newznab + SABnzbd emulation parts |
-| `@bridgarr/youtube` | `packages/youtube` | Reference bridge app (YTforTV) built on `@bridgarr/core` |
+| `@bridgarr/youtube` | `packages/youtube` | Reference bridge app (bridgarr-youtube) built on `@bridgarr/core` |
 
 ## Development commands
 
