@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config.js';
 import { logger } from '../logger.js';
-import type { DownloadJob, DownloadQueue } from '@bridgarr/core';
+import { assertAllowedUrl, type DownloadJob, type DownloadQueue } from '@bridgarr/core';
 
 export type SpawnLike = (
   cmd: string,
@@ -29,24 +29,11 @@ const UNIT_BYTES: Record<string, number> = {
 };
 
 /**
- * Validates that a pageUrl is a YouTube URL with an https: protocol.
- * Throws with a descriptive message on any violation so the caller's catch
- * block routes the error to failJob without additional plumbing.
+ * Validates that pageUrl is a YouTube URL with https: protocol.
+ * Delegates to assertAllowedUrl (core) which also rejects embedded credentials.
  */
 function assertYouTubeUrl(url: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error(`Invalid pageUrl: ${url}`);
-  }
-  if (parsed.protocol !== 'https:') {
-    throw new Error(`pageUrl protocol not allowed: ${parsed.protocol}`);
-  }
-  const host = parsed.hostname.replace(/^www\./, '');
-  if (host !== 'youtube.com' && host !== 'youtu.be') {
-    throw new Error(`pageUrl host not allowed: ${parsed.hostname}`);
-  }
+  assertAllowedUrl(url, { protocols: ['https:'], hosts: ['youtube.com', 'youtu.be'] });
 }
 
 /**
