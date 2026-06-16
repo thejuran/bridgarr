@@ -50,7 +50,7 @@ describe('newznab api', () => {
     const res = await request(app).get(`/api?t=caps&apikey=${key}`);
 
     expect(res.headers['content-type']).toMatch(/xml/);
-    expect(res.text).toContain('<server title="YTforTV"/>');
+    expect(res.text).toContain('<server title="bridgarr-youtube"/>');
     expect(res.text).toContain('<tv-search available="yes" supportedParams="q,season,ep"/>');
     expect(res.text).toContain('<category id="5000"');
     expect(res.text).toContain('<category id="2000"');
@@ -69,6 +69,8 @@ describe('newznab api', () => {
       expect(res.text).toContain('<newznab:attr name="season" value="1"/>');
       expect(res.text).toContain('<newznab:attr name="episode" value="2"/>');
       expect(res.text).toContain('<newznab:attr name="category" value="5000"/>');
+      // BRAND-04: tvsearch populated success feed (router.ts:71) emits bridgarr-youtube as RSS channel title
+      expect(res.text).toContain('<title>bridgarr-youtube</title>');
     });
 
     it('links each release to its YouTube watch page for preview', async () => {
@@ -102,6 +104,8 @@ describe('newznab api', () => {
 
       expect(res.text).toContain('total="0"');
       expect(source.searchTv).not.toHaveBeenCalled();
+      // BRAND-04: tvsearch season-only early return (router.ts:65) emits bridgarr-youtube as RSS channel title
+      expect(res.text).toContain('<title>bridgarr-youtube</title>');
     });
 
     it('returns empty results for daily-style numbering', async () => {
@@ -113,12 +117,24 @@ describe('newznab api', () => {
       expect(source.searchTv).not.toHaveBeenCalled();
     });
 
+    // BRAND-08: year-only title '1923' must reach searchTv as '1923', not ''
+    it('falls back to the full query when the title is only a year ("1923")', async () => {
+      const res = await request(app).get(
+        `/api?t=tvsearch&q=${encodeURIComponent('1923')}&season=1&ep=2&apikey=${key}`,
+      );
+
+      expect(source.searchTv).toHaveBeenCalledWith('1923', 1, 2);
+      expect(res.text).toContain('total=');
+    });
+
     it('answers the parameterless connection test with one synthetic release', async () => {
       const res = await request(app).get(`/api?t=tvsearch&apikey=${key}`);
 
       expect(res.text).toContain('total="1"');
-      expect(res.text).toContain('YTforTV.Indexer.Test.S01E01.Connection.OK.480p.WEB-DL');
+      expect(res.text).toContain('bridgarr-youtube.Indexer.Test.S01E01.Connection.OK.480p.WEB-DL');
       expect(source.searchTv).not.toHaveBeenCalled();
+      // BRAND-04: parameterless synthetic feed (router.ts:173) emits bridgarr-youtube as RSS channel title
+      expect(res.text).toContain('<title>bridgarr-youtube</title>');
     });
 
     it('uses HD categories when releaseQuality is 720p+', async () => {
@@ -141,6 +157,8 @@ describe('newznab api', () => {
       expect(source.searchMovie).toHaveBeenCalledWith('The Mouse That Roared', 1959);
       expect(res.text).toContain('The.Mouse.That.Roared.1959.YT.');
       expect(res.text).toContain('<newznab:attr name="category" value="2000"/>');
+      // BRAND-04: movie success feed (router.ts:97) emits bridgarr-youtube as RSS channel title
+      expect(res.text).toContain('<title>bridgarr-youtube</title>');
     });
 
     it('routes t=search with movie categories to the movie path', async () => {
@@ -155,7 +173,7 @@ describe('newznab api', () => {
     it('answers the parameterless movie test with one synthetic release', async () => {
       const res = await request(app).get(`/api?t=movie&apikey=${key}`);
 
-      expect(res.text).toContain('YTforTV.Indexer.Test.1970.Connection.OK.480p.WEB-DL');
+      expect(res.text).toContain('bridgarr-youtube.Indexer.Test.1970.Connection.OK.480p.WEB-DL');
     });
   });
 
@@ -169,7 +187,7 @@ describe('newznab api', () => {
 
     const nzb = await request(app).get(nzbPath);
     expect(nzb.headers['content-type']).toMatch(/x-nzb/);
-    const payload = parseNzb(nzb.text, { metaType: 'ytfortv' });
+    const payload = parseNzb(nzb.text, { metaType: 'bridgarr-youtube' });
     expect(payload).toMatchObject({
       provider: 'youtube',
       episodeId: 'MmWv4voPEwE',

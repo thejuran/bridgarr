@@ -24,7 +24,7 @@ describe('server', () => {
     const res = await request(app).get('/healthz');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok', service: 'ytfortv' });
+    expect(res.body).toEqual({ status: 'ok', service: 'bridgarr-youtube' });
   });
 
   it('strips CR/LF/quote from the NZB Content-Disposition filename (CWE-113)', async () => {

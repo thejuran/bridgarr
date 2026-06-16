@@ -36,7 +36,7 @@ describe('sabnzbd api', () => {
   const addFile = () =>
     request(app)
       .post(`/api?mode=addfile&apikey=${key}&cat=sonarr&output=json`)
-      .attach('name', Buffer.from(buildNzb(payload, { metaType: 'ytfortv' })), 'release.nzb');
+      .attach('name', Buffer.from(buildNzb(payload, { metaType: 'bridgarr-youtube' })), 'release.nzb');
 
   it('rejects a wrong apikey', async () => {
     const res = await request(app).get('/api?mode=version&apikey=wrong');
@@ -76,7 +76,7 @@ describe('sabnzbd api', () => {
     expect(typeof slot.mbleft).toBe('string');
   });
 
-  it('rejects addfile uploads that are not ytfortv NZBs', async () => {
+  it('rejects addfile uploads that are not bridgarr-youtube NZBs', async () => {
     const res = await request(app)
       .post(`/api?mode=addfile&apikey=${key}&cat=sonarr`)
       .attach('name', Buffer.from('<html>nope</html>'), 'junk.nzb');
