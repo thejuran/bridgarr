@@ -95,20 +95,6 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
   app.get('/api', apiDispatch);
   app.post('/api', upload.any(), apiDispatch);
 
-  // Error-handling middleware for multer upload-constraint violations (HARD-01).
-  // Must be registered AFTER app.post('/api', ...) so Express routes multer errors here.
-  // Catches ANY multer.MulterError (LIMIT_FILE_SIZE for oversize, LIMIT_FILE_COUNT for >1 file)
-  // and returns 413 with a SAB-style body so Sonarr can parse it like every other SAB error.
-  // Non-multer errors get a generic 500 — no internal detail leaked to the client (CLAUDE.md).
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    if (err instanceof multer.MulterError) {
-      res.status(413).json({ status: false, error: 'Upload exceeds limit' });
-      return;
-    }
-    logger.error({ err }, 'unhandled error');
-    res.status(500).json({ status: false, error: 'Internal server error' });
-  });
-
   // Fake-NZB endpoint referenced by Newznab enclosure URLs.
   app.get('/nzb/:token', (req, res) => {
     let payload;
@@ -125,6 +111,22 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     const safeName = payload.title.replace(/[\r\n"]/g, '');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.nzb"`);
     res.send(buildNzb(payload, { metaType: META_TYPE }));
+  });
+
+  // Trailing global error-handling middleware (HARD-01). Registered AFTER every
+  // route (/api AND /nzb/:token) so it is the true global error boundary covering
+  // all of them — Express only routes errors to a 4-arg handler declared after the
+  // route that threw.
+  // Catches ANY multer.MulterError (LIMIT_FILE_SIZE for oversize, LIMIT_FILE_COUNT for >1 file)
+  // and returns 413 with a SAB-style body so Sonarr can parse it like every other SAB error.
+  // Non-multer errors get a generic 500 — no internal detail leaked to the client (CLAUDE.md).
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof multer.MulterError) {
+      res.status(413).json({ status: false, error: 'Upload exceeds limit' });
+      return;
+    }
+    logger.error({ err }, 'unhandled error');
+    res.status(500).json({ status: false, error: 'Internal server error' });
   });
 
   return app;
