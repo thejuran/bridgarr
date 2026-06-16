@@ -6,3 +6,4 @@ export * from './sabnzbd/router.js';
 export * from './healthz.js';
 export * from './config.js';
 export * from './bridge.js';
+export * from './url.js';
