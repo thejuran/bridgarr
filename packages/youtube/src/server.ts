@@ -17,6 +17,15 @@ import {
 import { handleSettingsSave, renderSettingsPage } from './ui/settings.js';
 import type { SourceBridge } from '@bridgarr/core';
 
+/**
+ * NZB wire token. Single source of truth for the round-trip: buildNzb stamps it
+ * and handleSab/parseNzb match it. Build-side and parse-side MUST reference this
+ * one constant so they cannot drift (a mismatch silently rejects every grab).
+ * This is the internal wire identity, distinct from the human-facing display
+ * identity ("bridgarr-youtube" in the UI / healthz / startup log).
+ */
+const META_TYPE = 'bridgarr-youtube';
+
 export interface ServerDeps {
   /** YouTube search backend; injectable for tests. */
   source?: SourceBridge;
@@ -78,7 +87,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
       return;
     }
     if (typeof req.query.mode === 'string') {
-      handleSab({ settings: { apiKey: config.settings.apiKey, completeDir: config.settings.completeDir, metaType: 'bridgarr-youtube' }, queue, logger }, req, res);
+      handleSab({ settings: { apiKey: config.settings.apiKey, completeDir: config.settings.completeDir, metaType: META_TYPE }, queue, logger }, req, res);
       return;
     }
     res.status(400).json({ error: 'unknown api request' });
@@ -101,7 +110,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     // filename is cosmetic, so dropping these characters is safe.
     const safeName = payload.title.replace(/[\r\n"]/g, '');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.nzb"`);
-    res.send(buildNzb(payload, { metaType: 'bridgarr-youtube' }));
+    res.send(buildNzb(payload, { metaType: META_TYPE }));
   });
 
   return app;
