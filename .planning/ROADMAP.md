@@ -79,5 +79,5 @@ Plans:
 | 3. Public-Readiness Docs | v1.0 | 2/2 | Complete | 2026-06-13 |
 | 4. Ship Endgame | v1.0 | 4/4 | Complete | 2026-06-15 |
 | 5. Rebrand emitted identity | v1.1 | 3/3 | Complete   | 2026-06-16 |
-| 6. Hardening (4 deferred findings) | v1.1 | 2/4 | In Progress|  |
+| 6. Hardening (4 deferred findings) | v1.1 | 3/4 | In Progress|  |
 | 7. Live NAS e2e + cutover | v1.1 | 0/? | Not started | - |

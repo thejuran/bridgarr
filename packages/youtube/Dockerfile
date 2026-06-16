@@ -42,6 +42,10 @@ COPY --from=build /app/packages/core/package.json /app/packages/core/
 COPY --from=build /app/packages/core/dist /app/packages/core/dist
 COPY --from=build /app/packages/youtube/dist ./dist
 COPY packages/youtube/package.json packages/youtube/docker-entrypoint.sh ./
+# Smoke-test: proves core/dist resolves AND exposes assertAllowedUrl at build time.
+# A broken, incomplete, or stale dist (missing the export) fails docker build here
+# rather than crashing the youtube runner in production on its named import.
+RUN node -e "import('@bridgarr/core').then(m => { if (typeof m.assertAllowedUrl !== 'function') process.exit(1); }).catch(() => process.exit(1))"
 RUN chmod +x docker-entrypoint.sh
 
 VOLUME /data
