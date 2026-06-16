@@ -7,6 +7,8 @@ import { encodeToken } from '@bridgarr/core';
 import type { BridgeResult, SourceBridge } from '@bridgarr/core';
 import { capsXml, errorXml, searchRss, type ReleaseItem } from '@bridgarr/core';
 
+const APP_TITLE = 'bridgarr-youtube';
+
 export interface AppContext {
   config: Config;
   source: SourceBridge | null;
@@ -26,7 +28,7 @@ export async function handleNewznab(ctx: AppContext, req: Request, res: Response
 
   switch (param(req, 't')) {
     case 'caps':
-      res.send(capsXml({ title: 'YTforTV' }));
+      res.send(capsXml({ title: APP_TITLE }));
       return;
     case 'tvsearch':
       res.send(await tvSearch(ctx, req));
@@ -62,9 +64,9 @@ async function tvSearch(ctx: AppContext, req: Request): Promise<string> {
   const episode = toInt(param(req, 'ep'));
   // No numbering to stamp: season packs and daily (YYYY + MM/DD) searches are
   // out of scope for the MVP — Interactive Search on an episode sends both.
-  if (season === null || episode === null) return searchRss([]);
+  if (season === null || episode === null) return searchRss([], APP_TITLE);
 
-  const searchTitle = stripSearchYear(q);
+  const searchTitle = stripSearchYear(q) || q;
   const videos = await search(ctx, (s) => s.searchTv(searchTitle, season, episode));
   const { releaseQuality } = ctx.config.settings;
   const base = baseUrl(req);
@@ -82,6 +84,7 @@ async function tvSearch(ctx: AppContext, req: Request): Promise<string> {
       });
       return toItem(ctx, base, v, title, { season, episode, categories: tvCats(releaseQuality) });
     }),
+    APP_TITLE,
   );
 }
 
@@ -110,6 +113,7 @@ async function movieSearch(ctx: AppContext, req: Request): Promise<string> {
         categories: movieCats(releaseQuality),
       });
     }),
+    APP_TITLE,
   );
 }
 
@@ -162,25 +166,28 @@ function emptyOrSynthetic(ctx: AppContext, req: Request, kind: 'tv' | 'movie'): 
   const { releaseQuality } = ctx.config.settings;
   const tv = kind === 'tv';
   const title = tv
-    ? `YTforTV.Indexer.Test.S01E01.Connection.OK.${releaseQuality}.WEB-DL`
-    : `YTforTV.Indexer.Test.1970.Connection.OK.${releaseQuality}.WEB-DL`;
+    ? `bridgarr-youtube.Indexer.Test.S01E01.Connection.OK.${releaseQuality}.WEB-DL`
+    : `bridgarr-youtube.Indexer.Test.1970.Connection.OK.${releaseQuality}.WEB-DL`;
   const token = encodeToken({
     provider: 'youtube',
     episodeId: 'connection-test',
     title,
     pageUrl: 'https://www.youtube.com/',
   });
-  return searchRss([
-    {
-      title,
-      nzbUrl: `${baseUrl(req)}/nzb/${token}`,
-      sizeBytes: 1800 * BYTES_PER_SEC,
-      pubDate: new Date(),
-      season: tv ? 1 : null,
-      episode: tv ? 1 : null,
-      categories: tv ? tvCats(releaseQuality) : movieCats(releaseQuality),
-    },
-  ]);
+  return searchRss(
+    [
+      {
+        title,
+        nzbUrl: `${baseUrl(req)}/nzb/${token}`,
+        sizeBytes: 1800 * BYTES_PER_SEC,
+        pubDate: new Date(),
+        season: tv ? 1 : null,
+        episode: tv ? 1 : null,
+        categories: tv ? tvCats(releaseQuality) : movieCats(releaseQuality),
+      },
+    ],
+    APP_TITLE,
+  );
 }
 
 function isHd(quality: string): boolean {
