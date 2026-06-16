@@ -68,7 +68,12 @@ Plans:
   1. The rebranded+hardened `:dev` image is pushed to GHCR with a pinned digest and deployed to the NAS via a clean container swap (old container drained/stopped before new one starts); `/healthz` returns 200 on the new build
   2. A live Sonarr search→grab→import e2e cycle completes successfully against the rebranded app on the NAS, with the Sonarr indexer and download client re-tested and re-saved
   3. `~/ytfortv` is removed as the final milestone action, gated behind explicit human confirmation (or explicitly deferred again if the operator declines at the gate)
-**Plans**: TBD
+**Plans**: 4 plans (4 waves — strictly sequential, human-gated cutover)
+Plans:
+- [ ] 07-01-PLAN.md — CUT-01: verify branch reconciliation (D-02) + green suite → push to main → CI green → capture published @sha256 digest (autonomous)
+- [ ] 07-02-PLAN.md — CUT-01: record old NAS digest (rollback) + clean digest-pinned container swap (drain old before new) + /healthz 200 gate (human-gated)
+- [ ] 07-03-PLAN.md — CUT-02: re-test/re-save Sonarr indexer + download client, drive a live search→grab→import cycle, confirm a file imports (human-gated)
+- [ ] 07-04-PLAN.md — CUT-03: offer ~/ytfortv deletion as the final milestone gate, recommend defer; resolve either way (human-gated)
 
 ## Progress
 
@@ -80,4 +85,4 @@ Plans:
 | 4. Ship Endgame | v1.0 | 4/4 | Complete | 2026-06-15 |
 | 5. Rebrand emitted identity | v1.1 | 3/3 | Complete   | 2026-06-16 |
 | 6. Hardening (4 deferred findings) | v1.1 | 4/4 | Complete   | 2026-06-16 |
-| 7. Live NAS e2e + cutover | v1.1 | 0/? | Not started | - |
+| 7. Live NAS e2e + cutover | v1.1 | 0/4 | Not started | - |
