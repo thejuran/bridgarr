@@ -3,27 +3,27 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Rebrand + Pre-public Hardening
 status: executing
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-06-16T19:05:00.605Z"
-last_activity: 2026-06-16 -- Phase 6 execution started
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-06-16T19:18:00.000Z"
+last_activity: 2026-06-16 -- Phase 6 all 4 plans complete
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 33
+  completed_plans: 7
+  percent: 67
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 6 (hardening-4-deferred-findings) — EXECUTING
-Plan: 4 of 4
-Status: Executing Phase 6
-Last activity: 2026-06-16 -- Phase 6 execution started
+Phase: 6 (hardening-4-deferred-findings) — COMPLETE
+Plan: 4 of 4 (all complete)
+Status: Phase 6 complete — ready for Phase 7
+Last activity: 2026-06-16 -- Phase 6 all 4 plans complete
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -46,11 +46,14 @@ Progress: [█████████░] 86%
 
 **v1.1 (current):**
 
-- Plans completed: 4 / 7
+- Plans completed: 7 / 7
 - Plan 05-01: 7 min, 3 tasks, 5 files (core brand neutralization)
 - Plan 05-02: 6 min, 3 tasks, 8 files (youtube app rebrand + tests)
 - Plan 05-03: 8 min, 3 tasks, 3 files (docs + phase exit gate)
 - Plan 06-01: 2 min, 2 tasks, 3 files (assertAllowedUrl in @bridgarr/core, HARD-02/03)
+- Plan 06-02: 5 min, 2 tasks, 2 files (youtube runner thin-caller refactor, HARD-02/03)
+- Plan 06-03: 5 min, 2 tasks, 2 files (HARD-01: req-size cap middleware)
+- Plan 06-04: 8 min, 2 tasks, 1 file (HARD-04: Dockerfile runtime-stage smoke test)
 
 ## Accumulated Context
 
@@ -102,6 +105,7 @@ Progress: [█████████░] 86%
 - v1.1 Phase 5: metaType rename to 'bridgarr-youtube' is safe — token is internal (app writes + reads it itself; Sonarr/SABnzbd never inspect it); clean container swap in Phase 7 covers the in-flight-NZB edge
 - v1.1 Phase 6 HARD-03: SSRF guard extracted to core as assertAllowedUrl(url, {protocols, hosts}); youtube bridge becomes a thin caller with identical allowlist behavior — regression test asserts same accept/reject set
 - v1.1 Phase 7 CUT-03: ~/ytfortv deletion is the very last action, human-gated; history already preserved in the public repo; can be deferred again if operator declines at the gate
+- v1.1 Phase 6 HARD-04: Dockerfile runtime-stage smoke test uses ESM dynamic import() (not require — core is type:module) + typeof m.assertAllowedUrl assertion (not if(!m) — always truthy) + explicit .catch; build-time failure surface so broken/stale dist never ships (D-04)
 
 ### Constraints in Force
 
@@ -116,9 +120,9 @@ Progress: [█████████░] 86%
 
 ## Session Continuity
 
-Stopped at: Completed 06-03-PLAN.md
-Next action: Execute 06-02-PLAN.md (youtube runner thin-caller refactor, wave 2)
-Context: HARD-02/03 complete — assertAllowedUrl exported from @bridgarr/core, 72 core tests green, dist rebuilt, node -e exits 0. Wave 2 (plans 06-02 and 06-04) can import the symbol.
+Stopped at: Completed 06-04-PLAN.md (Phase 6 all 4 plans complete)
+Next action: Execute Phase 7 (CUT-03 container swap + ~/ytfortv deletion gate — human-gated)
+Context: Phase 6 HARD-01..04 complete. assertAllowedUrl exported from @bridgarr/core, youtube runner is a thin caller, req-size cap middleware in place, Dockerfile smoke test asserts assertAllowedUrl at build time. docker build exits 0 on intact tree.
 
 ## Deferred Items
 
@@ -132,3 +136,4 @@ Items from v1.0 carried into v1.1:
 | Phase 05-rebrand-emitted-identity P03 | 8min | 3 tasks | 3 files |
 | Phase 06-hardening-4-deferred-findings P03 | 5min | 2 tasks | 2 files |
 | Phase 06-hardening-4-deferred-findings P02 | 5 min | 2 tasks | 2 files |
+| Phase 06-hardening-4-deferred-findings P04 | 8 | 2 tasks | 1 files |

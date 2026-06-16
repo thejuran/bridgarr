@@ -25,7 +25,7 @@
 - [x] **HARD-01**: A request exceeding the multer upload limit returns a SAB-style error body (HTTP 413), not an unhandled crash
 - [x] **HARD-02**: A YouTube URL carrying embedded credentials (`user:pass@`) is rejected or stripped before reaching yt-dlp (CWE-116)
 - [x] **HARD-03**: The SSRF/URL-allowlist guard lives in `@bridgarr/core` as a parameterized helper (`assertAllowedUrl(url, {protocols, hosts})`), with the YouTube bridge calling it and preserving the same accept/reject behavior
-- [ ] **HARD-04**: A broken or incomplete `core/dist` copy fails the Docker build via a runtime import smoke test, not production
+- [x] **HARD-04**: A broken or incomplete `core/dist` copy fails the Docker build via a runtime import smoke test, not production
 
 ### Cutover
 
@@ -76,7 +76,7 @@ Which phases cover which requirements.
 | HARD-01 | Phase 6 | Complete |
 | HARD-02 | Phase 6 | Complete |
 | HARD-03 | Phase 6 | Complete |
-| HARD-04 | Phase 6 | Pending |
+| HARD-04 | Phase 6 | Complete |
 | CUT-01 | Phase 7 | Pending |
 | CUT-02 | Phase 7 | Pending |
 | CUT-03 | Phase 7 | Pending |

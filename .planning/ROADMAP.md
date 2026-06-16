@@ -27,7 +27,7 @@ Full phase details archived at [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 ### v1.1 Rebrand + Pre-public Hardening
 
 - [x] **Phase 5: Rebrand emitted identity** — Rename all emitted display strings and the metaType wire token from ytfortv/YTforTV to bridgarr-youtube; fix the year-only-title search fallback bug; update README trust-model section (completed 2026-06-16)
-- [ ] **Phase 6: Hardening (4 deferred findings)** — Multer limit error handler, URL credential stripping, SSRF guard extracted into @bridgarr/core, Docker runtime-stage import smoke test
+- [x] **Phase 6: Hardening (4 deferred findings)** — Multer limit error handler, URL credential stripping, SSRF guard extracted into @bridgarr/core, Docker runtime-stage import smoke test (completed 2026-06-16)
 - [ ] **Phase 7: Live NAS e2e + cutover** — Build and push the rebranded+hardened image, clean container swap on the NAS, live Sonarr e2e verification, then human-gated ~/ytfortv deletion as the final milestone action
 
 ## Phase Details
@@ -79,5 +79,5 @@ Plans:
 | 3. Public-Readiness Docs | v1.0 | 2/2 | Complete | 2026-06-13 |
 | 4. Ship Endgame | v1.0 | 4/4 | Complete | 2026-06-15 |
 | 5. Rebrand emitted identity | v1.1 | 3/3 | Complete   | 2026-06-16 |
-| 6. Hardening (4 deferred findings) | v1.1 | 3/4 | In Progress|  |
+| 6. Hardening (4 deferred findings) | v1.1 | 4/4 | Complete   | 2026-06-16 |
 | 7. Live NAS e2e + cutover | v1.1 | 0/? | Not started | - |
