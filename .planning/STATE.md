@@ -3,25 +3,25 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Rebrand + Pre-public Hardening
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-06-16T19:18:00.000Z"
-last_activity: 2026-06-16 -- Phase 6 all 4 plans complete
+stopped_at: Phase 7 Plan 01 complete — awaiting human-gated Plan 02 (NAS swap)
+last_updated: "2026-06-16T20:05:00.000Z"
+last_activity: 2026-06-16 -- Phase 07 Plan 01 complete (CI push + digest captured)
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 67
+  total_plans: 11
+  completed_plans: 8
+  percent: 73
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 6 (hardening-4-deferred-findings) — COMPLETE
-Plan: 4 of 4 (all complete)
-Status: Phase 6 complete — ready for Phase 7
-Last activity: 2026-06-16 -- Phase 6 all 4 plans complete
+Phase: 07 (live-nas-e2e-cutover) — EXECUTING
+Plan: 2 of 4 (awaiting human — Plan 02 is NAS swap, human-gated)
+Status: Executing Phase 07 — Plan 01 complete
+Last activity: 2026-06-16 -- Phase 07 Plan 01 complete (CI push + digest captured)
 
 Progress: [██████████] 100%
 
@@ -46,7 +46,7 @@ Progress: [██████████] 100%
 
 **v1.1 (current):**
 
-- Plans completed: 7 / 7
+- Plans completed: 8 / 8
 - Plan 05-01: 7 min, 3 tasks, 5 files (core brand neutralization)
 - Plan 05-02: 6 min, 3 tasks, 8 files (youtube app rebrand + tests)
 - Plan 05-03: 8 min, 3 tasks, 3 files (docs + phase exit gate)
@@ -54,6 +54,7 @@ Progress: [██████████] 100%
 - Plan 06-02: 5 min, 2 tasks, 2 files (youtube runner thin-caller refactor, HARD-02/03)
 - Plan 06-03: 5 min, 2 tasks, 2 files (HARD-01: req-size cap middleware)
 - Plan 06-04: 8 min, 2 tasks, 1 file (HARD-04: Dockerfile runtime-stage smoke test)
+- Plan 07-01: 8 min, 2 tasks, 2 files (CUT-01 wave 1: CI push + digest capture; PUSH_SHA=1658a8b; digest=sha256:492dab7f...)
 
 ## Accumulated Context
 
@@ -106,6 +107,7 @@ Progress: [██████████] 100%
 - v1.1 Phase 6 HARD-03: SSRF guard extracted to core as assertAllowedUrl(url, {protocols, hosts}); youtube bridge becomes a thin caller with identical allowlist behavior — regression test asserts same accept/reject set
 - v1.1 Phase 7 CUT-03: ~/ytfortv deletion is the very last action, human-gated; history already preserved in the public repo; can be deferred again if operator declines at the gate
 - v1.1 Phase 6 HARD-04: Dockerfile runtime-stage smoke test uses ESM dynamic import() (not require — core is type:module) + typeof m.assertAllowedUrl assertion (not if(!m) — always truthy) + explicit .catch; build-time failure surface so broken/stale dist never ships (D-04)
+- v1.1 Phase 7 Plan 01 (CUT-01 wave 1): pushed 1658a8b to origin/main; CI run 27644510446 (test+publish=success); image ghcr.io/thejuran/bridgarr-youtube@sha256:492dab7f16998693c4d4b65e45aefb5478ad24f5e5c838f64976e1bc6e150c1c published; digest captured in 07-DIGEST.md; gitleaks local gate clean (69 commits); ba4739f (CWE-22) ancestry verified; 217 tests green on pushed HEAD
 
 ### Constraints in Force
 
@@ -120,9 +122,9 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 06-04-PLAN.md (Phase 6 all 4 plans complete)
-Next action: Execute Phase 7 (CUT-03 container swap + ~/ytfortv deletion gate — human-gated)
-Context: Phase 6 HARD-01..04 complete. assertAllowedUrl exported from @bridgarr/core, youtube runner is a thin caller, req-size cap middleware in place, Dockerfile smoke test asserts assertAllowedUrl at build time. docker build exits 0 on intact tree.
+Stopped at: Phase 7 Plan 01 complete — awaiting human-gated Plan 02 (NAS swap)
+Next action: Execute Phase 7 Plan 02 — NAS container swap (human-gated: operator must run swap commands on NAS, verify /healthz 200, then trigger Plan 03 Sonarr e2e)
+Context: Phase 7 Plan 01 complete. origin/main at 1658a8b (Phase 5+6+CWE-22). CI run 27644510446 green. Image ghcr.io/thejuran/bridgarr-youtube@sha256:492dab7f16998693c4d4b65e45aefb5478ad24f5e5c838f64976e1bc6e150c1c published and recorded in 07-DIGEST.md. Plan 02 (NAS swap) and Plan 03 (Sonarr e2e) are human-gated checkpoints.
 
 ## Deferred Items
 
