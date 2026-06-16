@@ -27,6 +27,32 @@ describe('server', () => {
     expect(res.body).toEqual({ status: 'ok', service: 'bridgarr-youtube' });
   });
 
+  it('returns 413 with a SAB-style body when the upload exceeds the size limit', async () => {
+    const app = createServer(loadConfig({ DATA_DIR: dataDir }));
+    // Buffer larger than the 1,000,000-byte fileSize limit — trips LIMIT_FILE_SIZE
+    const oversizeBuffer = Buffer.alloc(1_000_001);
+
+    const res = await request(app)
+      .post('/api?mode=addfile')
+      .attach('nzbfile', oversizeBuffer, 'big.nzb');
+
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({ status: false, error: 'Upload exceeds limit' });
+  });
+
+  it('returns 413 with a SAB-style body when more than one file is uploaded', async () => {
+    const app = createServer(loadConfig({ DATA_DIR: dataDir }));
+    // Two small files — trips multer files:1 limit (LIMIT_FILE_COUNT)
+
+    const res = await request(app)
+      .post('/api?mode=addfile')
+      .attach('nzbfile', Buffer.alloc(10), 'a.nzb')
+      .attach('nzbfile', Buffer.alloc(10), 'b.nzb');
+
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({ status: false, error: 'Upload exceeds limit' });
+  });
+
   it('strips CR/LF/quote from the NZB Content-Disposition filename (CWE-113)', async () => {
     const app = createServer(loadConfig({ DATA_DIR: dataDir }));
     const token = encodeToken({
