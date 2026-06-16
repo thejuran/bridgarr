@@ -1,14 +1,16 @@
-# YTforTV
+# bridgarr-youtube
 
 Search YouTube from Sonarr and Radarr for **obscure or older broadcast TV shows and movies** that no usenet or torrent indexer carries — but that exist on YouTube as user uploads, often low quality, rarely labeled `S01E01`, frequently titled "… full episode". Better than nothing.
 
-YTforTV is a bridge: it pretends to be a **Newznab indexer** and a **SABnzbd download client**. Sonarr/Radarr search it like any other indexer; grabs are downloaded with **yt-dlp** and imported normally.
+bridgarr-youtube is a bridge: it pretends to be a **Newznab indexer** and a **SABnzbd download client**. Sonarr/Radarr search it like any other indexer; grabs are downloaded with **yt-dlp** and imported normally.
+
+> **Note:** bridgarr-youtube is designed for **LAN-only use** — same trust model as Sonarr and SABnzbd themselves (unauthenticated on the local network, no built-in auth by design). Do not expose it on a public IP or behind a reverse proxy without adding your own authentication layer. See [Security & trust model](#security--trust-model) below.
 
 ## What it is — and is not
 
 - **Is:** a last-resort source for *traditionally broadcast* content already in (or being added to) your Sonarr/Radarr library.
 - **Is not:** a tool for native YouTube content. It does not treat channels as series. For that, use ytdl-sub or Tube Archivist.
-- **Trust model:** built for **Interactive Search**. YouTube results are messy (clips, compilations, mislabeled uploads); you pick the right one by eye. Every release name carries the real upload title, length, and channel so you can judge:
+- **Result selection:** built for **Interactive Search**. YouTube results are messy (clips, compilations, mislabeled uploads); you pick the right one by eye. Every release name carries the real upload title, length, and channel so you can judge:
 
   ```
   Roobarb.S01E01.YT.When.Roobarb.Made.a.Spike.5min.480p.WEB-DL-TannerandJessie
@@ -19,8 +21,8 @@ YTforTV is a bridge: it pretends to be a **Newznab indexer** and a **SABnzbd dow
 
 ## How a grab flows
 
-1. Sonarr Interactive Search → YTforTV fans your query out over several YouTube search phrasings (`S01E02`, `season 1 episode 2`, `1x02`, `full episode`), merges and filters the results (clips below a duration floor, livestreams, other shows are dropped).
-2. You pick a result → Sonarr downloads a fake NZB from YTforTV and hands it to the "SABnzbd" download client (also YTforTV).
+1. Sonarr Interactive Search → bridgarr-youtube fans your query out over several YouTube search phrasings (`S01E02`, `season 1 episode 2`, `1x02`, `full episode`), merges and filters the results (clips below a duration floor, livestreams, other shows are dropped).
+2. You pick a result → Sonarr downloads a fake NZB from bridgarr-youtube and hands it to the "SABnzbd" download client (also bridgarr-youtube).
 3. yt-dlp downloads the actual video; the finished file lands in the complete dir; Sonarr imports it as usual.
 
 ## Setup
@@ -39,21 +41,21 @@ bridgarr-youtube:
     - PUID=1026                  # same user as Sonarr/Radarr — they must be able to
     - PGID=100                   # move the finished files out of the complete dir
   volumes:
-    - /volume1/docker/ytfortv:/config
+    - /volume1/docker/bridgarr-youtube:/config
     - /volume1/data:/data        # same path Sonarr/Radarr see, so imports need no remapping
   restart: unless-stopped
 ```
 
 **PUID/PGID matter:** without them the container runs as root, downloaded files end up root-owned, and Sonarr's import fails with *"Access to the path … is denied"*. Match whatever PUID/PGID your *arr containers use.
 
-First run generates an API key — open `http://<host>:8485` to see it and adjust settings. Set the **complete directory** to a path that Sonarr/Radarr can also see at the *same* path (e.g. `/data/ytfortv/complete`).
+First run generates an API key — open `http://<host>:8485` to see it and adjust settings. Set the **complete directory** to a path that Sonarr/Radarr can also see at the *same* path (e.g. `/data/bridgarr-youtube/complete`).
 
 ### Sonarr
 
-1. **Download client** → add **SABnzbd**: host `<host>`, port `8485`, API key from the YTforTV settings page, category `sonarr`.
+1. **Download client** → add **SABnzbd**: host `<host>`, port `8485`, API key from the bridgarr-youtube settings page, category `sonarr`.
 2. **Indexer** → add **Newznab**: URL `http://<host>:8485`, API path `/api`, same API key.
    - **Enable RSS: off. Enable Automatic Search: off. Enable Interactive Search: on.** This indexer is for hand-picked grabs only — automatic grabbing of YouTube results will eventually import a mislabeled upload.
-   - **Download Client: select the YTforTV client you just created.** The field hides behind **Show Advanced**. If you run more than one SABnzbd-type client (a real SABnzbd, iViewarr, …), an unpinned indexer lets Sonarr hand YTforTV's NZBs to the wrong one, where they're rejected and the grab fails.
+   - **Download Client: select the bridgarr-youtube client you just created.** The field hides behind **Show Advanced**. If you run more than one SABnzbd-type client (a real SABnzbd, iViewarr, …), an unpinned indexer lets Sonarr hand bridgarr-youtube's NZBs to the wrong one, where they're rejected and the grab fails.
    - Leave the indexer's **Tags** field empty — a tagged indexer is silently skipped for any series/movie that doesn't carry the same tag.
 3. **Quality profile**: results are tagged with a fixed quality (default `480p`, a deliberate under-promise — YouTube search doesn't expose resolution). Your profile must *allow* WEBDL-480p or every result will be rejected.
 
@@ -80,8 +82,19 @@ Same as Sonarr (category `radarr`). Movie searches extract the year from Radarr'
 
 - **Season packs and daily shows** are not supported (nothing sane to stamp); search episode-by-episode.
 - **yt-dlp freshness:** YouTube breaks extractors regularly. The container self-updates yt-dlp on every start (`YTDLP_AUTOUPDATE=0` to disable); restart the container if downloads start failing.
-- **The connection test release:** the indexer answers Sonarr/Radarr's parameterless test search with one synthetic release (`YTforTV.Indexer.Test...`) so the save-time test passes. It maps to no real series and can never be grabbed by accident.
+- **The connection test release:** the indexer answers Sonarr/Radarr's parameterless test search with one synthetic release so the save-time test passes. It maps to no real series and can never be grabbed by accident.
 - **Legal note:** uploads of broadcast content on YouTube are frequently unauthorized; whether downloading them is acceptable is on you.
+
+## Security & trust model
+
+bridgarr-youtube runs on your local NAS alongside Sonarr, Radarr, and SABnzbd — all on the same LAN segment. Its trust model is identical to theirs: **unauthenticated on the local network by design** (D-02a). This is a deliberate decision, not an oversight.
+
+- The `/nzb` download endpoint and the Settings UI are not auth-gated. API key validation guards the Newznab and SABnzbd endpoints against casual cross-site calls, but the app relies on your LAN perimeter for isolation, exactly as Sonarr and SABnzbd do in their default configurations.
+- **Do not expose bridgarr-youtube on a public IP or behind an open reverse proxy without adding your own authentication layer** (e.g. Authelia, Authentik, basic auth in nginx). If you do expose it publicly, the Settings UI and download endpoint are reachable without credentials.
+- The SSRF guard (`assertYouTubeUrl`) restricts outbound HTTP to `youtube.com` / `youtu.be` over HTTPS only — the app cannot be used as an open proxy to internal network hosts.
+- yt-dlp URLs are constructed from validated inputs, not passed raw from user input.
+
+To report a security issue (SSRF guard bypass, secrets leaking into logs, credential exposure, or any other vulnerability), see [SECURITY.md](../../SECURITY.md) at the repo root for the responsible disclosure process.
 
 ## Development
 
