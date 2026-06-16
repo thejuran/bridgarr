@@ -8,8 +8,8 @@ export function errorXml(code: number, description: string): string {
 export interface CapsOptions {
   title: string;
   /**
-   * Optional parameterized categories (CORE-04). When omitted, renders the
-   * default ytfortv blocks (Movies/2000 + TV/5000) byte-identically (D-05).
+   * Optional parameterized categories (CORE-04). When omitted, renders
+   * the default Newznab Movies(2000) + TV(5000) category blocks.
    */
   categories?: {
     movies?: Array<{ id: number; name: string }>;
@@ -79,10 +79,10 @@ export interface ReleaseItem {
  *
  * @param items The release items to render.
  * @param title Channel `<title>` — the bridge's feed identity. Defaults to
- *   `'YTforTV'` so the reference app's output stays byte-identical (D-05); a
- *   second bridge built on core should pass its own name (CORE-04 / D-07).
+ *   `'bridgarr'` (bridge-neutral); callers should pass their own name
+ *   explicitly. The youtube bridge passes `'bridgarr-youtube'`.
  */
-export function searchRss(items: ReleaseItem[], title = 'YTforTV'): string {
+export function searchRss(items: ReleaseItem[], title = 'bridgarr'): string {
   const rendered = items.map(renderItem).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
