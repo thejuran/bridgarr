@@ -46,9 +46,9 @@ function isPayload(value: unknown): value is NzbPayload {
 /** A minimal structurally-valid NZB carrying the payload in a head meta tag. */
 export function buildNzb(payload: NzbPayload, opts: NzbOptions): string {
   const token = encodeToken(payload);
-  // Escape metaType at every XML interpolation site. 'ytfortv' is unchanged
-  // (no XML-special chars → byte-identical output, D-05), but a future bridge
-  // with special chars in metaType would otherwise emit malformed NZB. parseNzb
+  // Escape metaType at every XML interpolation site. 'bridgarr-youtube' has no
+  // XML-special chars so escapeXml is a no-op for it, but a future bridge with
+  // special chars in metaType would otherwise emit malformed NZB. parseNzb
   // matches this same escaped form (see below), so the round-trip holds.
   const m = escapeXml(opts.metaType);
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -74,7 +74,7 @@ export function parseNzb(xml: string, opts: NzbOptions): NzbPayload {
   const metaType = opts.metaType;
   // buildNzb writes the attribute as escapeXml(metaType); match that exact form
   // so the round-trip holds even when metaType contains XML-special chars.
-  // For 'ytfortv' escapeXml is a no-op, so this is unchanged.
+  // For 'bridgarr-youtube' escapeXml is a no-op (no XML-special chars), so the round-trip holds.
   const metaRe = new RegExp(`<meta type="${escapeRegExp(escapeXml(metaType))}">([A-Za-z0-9_-]+)<\\/meta>`);
   const token = xml.match(metaRe)?.[1];
   if (!token) throw new Error(`not a ${metaType} nzb`);
