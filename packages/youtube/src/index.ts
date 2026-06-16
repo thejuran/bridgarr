@@ -13,6 +13,6 @@ const app = createServer(config, { queue, source: new YouTubeSource(config) });
 runner.start();
 
 app.listen(config.port, config.host, () => {
-  logger.info(`ytfortv listening on http://${config.host}:${config.port}`);
+  logger.info(`bridgarr-youtube listening on http://${config.host}:${config.port}`);
   logger.info(`data dir: ${config.dataDir}`);
 });

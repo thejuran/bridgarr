@@ -44,7 +44,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     next();
   });
 
-  app.get('/healthz', healthzHandler('ytfortv'));
+  app.get('/healthz', healthzHandler('bridgarr-youtube'));
 
   app.get('/', (req, res) => {
     res.type('html').send(renderSettingsPage(config, req.query.saved === '1'));
@@ -78,7 +78,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
       return;
     }
     if (typeof req.query.mode === 'string') {
-      handleSab({ settings: { apiKey: config.settings.apiKey, completeDir: config.settings.completeDir, metaType: 'ytfortv' }, queue, logger }, req, res);
+      handleSab({ settings: { apiKey: config.settings.apiKey, completeDir: config.settings.completeDir, metaType: 'bridgarr-youtube' }, queue, logger }, req, res);
       return;
     }
     res.status(400).json({ error: 'unknown api request' });
@@ -101,7 +101,7 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     // filename is cosmetic, so dropping these characters is safe.
     const safeName = payload.title.replace(/[\r\n"]/g, '');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.nzb"`);
-    res.send(buildNzb(payload, { metaType: 'ytfortv' }));
+    res.send(buildNzb(payload, { metaType: 'bridgarr-youtube' }));
   });
 
   return app;

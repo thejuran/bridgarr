@@ -18,7 +18,7 @@ export function renderSettingsPage(config: Config, saved = false): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YTforTV</title>
+<title>bridgarr-youtube</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #222; }
   h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2rem; }
@@ -31,7 +31,7 @@ export function renderSettingsPage(config: Config, saved = false): string {
 </style>
 </head>
 <body>
-<h1>YTforTV</h1>
+<h1>bridgarr-youtube</h1>
 <p><a href="/browse">Search YouTube &amp; add shows →</a></p>
 ${saved ? '<p class="saved">Settings saved.</p>' : ''}
 <form method="post" action="/settings">

@@ -501,7 +501,7 @@ function page(title: string, body: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} — YTforTV</title>
+<title>${escapeHtml(title)} — bridgarr-youtube</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; color: #222; }
   h2 { font-size: 1.2rem; }
@@ -531,7 +531,7 @@ function page(title: string, body: string): string {
 </style>
 </head>
 <body>
-<nav><strong>YTforTV</strong> <a href="/browse">Browse</a> <a href="/">Settings</a></nav>
+<nav><strong>bridgarr-youtube</strong> <a href="/browse">Browse</a> <a href="/">Settings</a></nav>
 ${body}
 </body>
 </html>`;
