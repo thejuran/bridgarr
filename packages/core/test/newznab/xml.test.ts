@@ -5,13 +5,13 @@ import { capsXml, errorXml, searchRss, type ReleaseItem } from '../../src/newzna
 
 describe('capsXml – default categories', () => {
   it('renders the default Movies(2000) block with subcat 2040', () => {
-    const xml = capsXml({ title: 'YTforTV' });
+    const xml = capsXml({ title: 'bridgarr-youtube' });
     expect(xml).toContain('<category id="2000" name="Movies">');
     expect(xml).toContain('<subcat id="2040" name="Movies/HD"/>');
   });
 
   it('renders the default TV(5000) block with subcats 5030 and 5040', () => {
-    const xml = capsXml({ title: 'YTforTV' });
+    const xml = capsXml({ title: 'bridgarr-youtube' });
     expect(xml).toContain('<category id="5000" name="TV">');
     expect(xml).toContain('<subcat id="5030" name="TV/SD"/>');
     expect(xml).toContain('<subcat id="5040" name="TV/HD"/>');

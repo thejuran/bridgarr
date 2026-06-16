@@ -20,7 +20,7 @@ const testPayload: NzbPayload = {
 const testSettings: SabSettings = {
   apiKey: 'testkey123',
   completeDir: '/tmp/complete',
-  metaType: 'ytfortv',
+  metaType: 'bridgarr-youtube',
 };
 
 function makeReq(query: Record<string, string>, files?: UploadedFile[]): Request {
@@ -79,7 +79,7 @@ describe('handleSab - get_config', () => {
 describe('handleSab - addfile', () => {
   it('queues a job when given a valid NZB; invokes queue.add; metaType is injected (not hardcoded)', () => {
     const queue = new DownloadQueue();
-    const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
+    const nzbXml = buildNzb(testPayload, { metaType: 'bridgarr-youtube' });
     const file: UploadedFile = {
       buffer: Buffer.from(nzbXml),
       originalname: 'test.nzb',
@@ -97,7 +97,7 @@ describe('handleSab - addfile', () => {
 
   it('sanitizes a path-traversal cat= to the default (would otherwise escape completeDir, CWE-22)', () => {
     const queue = new DownloadQueue();
-    const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
+    const nzbXml = buildNzb(testPayload, { metaType: 'bridgarr-youtube' });
     const file: UploadedFile = { buffer: Buffer.from(nzbXml), originalname: 'test.nzb' };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: '../../tmp/evil' }, [file]);
     const res = makeRes();
@@ -111,7 +111,7 @@ describe('handleSab - addfile', () => {
 
   it('preserves a cat= value that is on the allowlist', () => {
     const queue = new DownloadQueue();
-    const nzbXml = buildNzb(testPayload, { metaType: 'ytfortv' });
+    const nzbXml = buildNzb(testPayload, { metaType: 'bridgarr-youtube' });
     const file: UploadedFile = { buffer: Buffer.from(nzbXml), originalname: 'test.nzb' };
     const req = makeReq({ apikey: 'testkey123', mode: 'addfile', cat: 'radarr' }, [file]);
     const res = makeRes();
@@ -134,7 +134,7 @@ describe('handleSab - addfile', () => {
 
     const body = (res as unknown as { body: unknown }).body as { status: boolean; error: string };
     expect(body.status).toBe(false);
-    expect(body.error).toContain('ytfortv');
+    expect(body.error).toContain('bridgarr-youtube');
   });
 
   it('calls logger.warn with no-op fallback when no logger provided (does not throw)', () => {

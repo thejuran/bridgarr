@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildNzb, decodeToken, encodeToken, parseNzb, type NzbPayload } from '../src/nzb.js';
 
-const opts = { metaType: 'ytfortv' };
+const opts = { metaType: 'bridgarr-youtube' };
 
 const payload: NzbPayload = {
   provider: 'youtube',
@@ -35,8 +35,8 @@ describe('NZB roundtrip', () => {
     expect(parseNzb(xml, opts)).toEqual(payload);
   });
 
-  it('rejects XML without a ytfortv meta tag', () => {
-    expect(() => parseNzb('<?xml version="1.0"?><nzb></nzb>', opts)).toThrow('not a ytfortv nzb');
+  it('rejects XML without a bridgarr-youtube meta tag', () => {
+    expect(() => parseNzb('<?xml version="1.0"?><nzb></nzb>', opts)).toThrow('not a bridgarr-youtube nzb');
   });
 
   it('escapes XML-special metaType consistently so build→parse still round-trips', () => {
