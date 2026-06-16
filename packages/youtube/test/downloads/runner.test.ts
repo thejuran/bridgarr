@@ -250,4 +250,24 @@ describe('DownloadRunner', () => {
     expect(queue.get(job.nzoId)!.status).toBe('failed');
   });
 
+  it('rejects a pageUrl with embedded credentials and marks the job failed', async () => {
+    const p = { ...payload('A'), pageUrl: 'https://user:pass@youtube.com/watch?v=abc' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+    await runner.idle();
+
+    const j = queue.get(job.nzoId)!;
+    expect(j.status).toBe('failed');
+    expect(j.failMessage).toContain('credentials');
+  });
+
+  it('accepts a www.youtu.be pageUrl (www-strip parity for every allowed host)', () => {
+    const p = { ...payload('B'), pageUrl: 'https://www.youtu.be/abc' };
+    const job = queue.add(p, 'sonarr');
+    runner.tick();
+
+    // Guard accepted the URL — spawn was called and the job is now downloading
+    expect(queue.get(job.nzoId)!.status).toBe('downloading');
+  });
+
 });
