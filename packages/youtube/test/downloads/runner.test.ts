@@ -445,4 +445,44 @@ describe('DownloadRunner', () => {
     expect((runner as unknown as { pending: Promise<void>[] }).pending.length).toBe(0);
   });
 
+  // ─── REL-02: sweepOrphans ─────────────────────────────────────────────────
+
+  it('sweepOrphans removes orphaned dirs and leaves dirs matching active jobs', async () => {
+    // Create an orphan dir (no matching job in queue)
+    const orphanDir = path.join(config.settings.downloadDir, 'orphan-dir-no-job');
+    fs.mkdirSync(orphanDir, { recursive: true });
+
+    // Create a dir matching an active queued job
+    const activeJob = queue.add(payload('ActiveJob'), 'sonarr');
+    const activeDir = path.join(config.settings.downloadDir, activeJob.nzoId);
+    fs.mkdirSync(activeDir, { recursive: true });
+
+    await runner.sweepOrphans();
+
+    expect(fs.existsSync(orphanDir)).toBe(false);    // orphan removed
+    expect(fs.existsSync(activeDir)).toBe(true);     // active-job dir preserved
+  });
+
+  it('sweepOrphans resolves without throwing when fsp.rm rejects', async () => {
+    // Create a dir to sweep
+    const orphanDir = path.join(config.settings.downloadDir, 'orphan-2');
+    fs.mkdirSync(orphanDir, { recursive: true });
+
+    // Force fsp.rm to reject
+    const rmSpy = vi.spyOn(fsp, 'rm').mockRejectedValue(new Error('EPERM'));
+
+    // sweepOrphans must NOT reject even if rm fails
+    await expect(runner.sweepOrphans()).resolves.toBeUndefined();
+
+    rmSpy.mockRestore();
+  });
+
+  it('sweepOrphans resolves without throwing when downloadDir does not exist', async () => {
+    // Point downloadDir to a non-existent path
+    updateSettings(config, { downloadDir: path.join(dataDir, 'nonexistent') });
+    const freshRunner = new DownloadRunner({ queue, config, spawnFn: fakeSpawn });
+
+    await expect(freshRunner.sweepOrphans()).resolves.toBeUndefined();
+  });
+
 });
