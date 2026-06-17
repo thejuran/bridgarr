@@ -111,3 +111,54 @@ describe('saveSettings + loadSettings round-trip', () => {
     expect(result).toMatchObject(obj);
   });
 });
+
+describe('saveSettings - atomic write (REL-05)', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bridgarr-test-'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('leaves the original settings.json intact if the rename fails mid-write', () => {
+    const settingsPath = path.join(tmpDir, 'settings.json');
+    fs.writeFileSync(settingsPath, '{"original":true}\n');
+
+    // Spy on renameSync to throw, simulating an interrupted write
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw new Error('EIO');
+    });
+
+    expect(() => saveSettings(settingsPath, { changed: true })).toThrow('EIO');
+    // Original file must be byte-intact
+    expect(fs.readFileSync(settingsPath, 'utf8')).toBe('{"original":true}\n');
+    // No orphaned .tmp files left behind
+    expect(fs.readdirSync(tmpDir).filter(f => f.includes('.tmp'))).toHaveLength(0);
+
+    spy.mockRestore();
+  });
+
+  it('does not leave an orphaned .tmp file after a failed rename', () => {
+    const settingsPath = path.join(tmpDir, 'settings.json');
+    fs.writeFileSync(settingsPath, '{"original":true}\n');
+
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw new Error('ENOSPC');
+    });
+
+    try {
+      saveSettings(settingsPath, { changed: true });
+    } catch {
+      // expected
+    }
+
+    const tmpFiles = fs.readdirSync(tmpDir).filter(f => f.includes('.tmp'));
+    expect(tmpFiles).toHaveLength(0);
+
+    spy.mockRestore();
+  });
+});
