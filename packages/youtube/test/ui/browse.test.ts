@@ -44,6 +44,14 @@ const ADD_MOVIE_FORM = {
   searchForMovie: 'on',
 };
 
+// Same-origin headers for test POSTs that should succeed (SEC-01 / T-08-04).
+// Setting both Host and Origin to a fixed allowlisted value keeps the
+// host-allowlist + same-origin checks in sameOriginGuard happy.
+const SAME_ORIGIN_HEADERS = {
+  Host: '127.0.0.1',
+  Origin: 'http://127.0.0.1',
+};
+
 describe('browse ui', () => {
   let dataDir: string;
   let config: Config;
@@ -173,7 +181,7 @@ describe('browse ui', () => {
 
   describe('POST /browse/add', () => {
     it('adds the chosen series to sonarr and redirects', async () => {
-      const res = await request(app).post('/browse/add').type('form').send(ADD_FORM);
+      const res = await request(app).post('/browse/add').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_FORM);
 
       expect(res.status).toBe(303);
       expect(res.headers.location).toContain('/browse?added=');
@@ -192,7 +200,7 @@ describe('browse ui', () => {
     it('omits the missing-episode search when unchecked', async () => {
       const { searchForMissing: _omitted, ...form } = ADD_FORM;
 
-      await request(app).post('/browse/add').type('form').send(form);
+      await request(app).post('/browse/add').set(SAME_ORIGIN_HEADERS).type('form').send(form);
 
       expect(sonarr.addCalls[0]).toMatchObject({
         addOptions: { monitor: 'all', searchForMissingEpisodes: false },
@@ -202,6 +210,7 @@ describe('browse ui', () => {
     it('rejects an invalid tvdb id', async () => {
       const res = await request(app)
         .post('/browse/add')
+        .set(SAME_ORIGIN_HEADERS)
         .type('form')
         .send({ ...ADD_FORM, tvdbId: 'abc' });
 
@@ -212,6 +221,7 @@ describe('browse ui', () => {
     it('rejects an unknown monitor mode', async () => {
       const res = await request(app)
         .post('/browse/add')
+        .set(SAME_ORIGIN_HEADERS)
         .type('form')
         .send({ ...ADD_FORM, monitor: 'pilot-only' });
 
@@ -222,7 +232,7 @@ describe('browse ui', () => {
     it('rejects when sonarr is not configured', async () => {
       updateSettings(config, { sonarrUrl: '', sonarrApiKey: '' });
 
-      const res = await request(app).post('/browse/add').type('form').send(ADD_FORM);
+      const res = await request(app).post('/browse/add').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_FORM);
 
       expect(res.status).toBe(400);
       expect(sonarr.addCalls).toHaveLength(0);
@@ -237,7 +247,7 @@ describe('browse ui', () => {
       });
       const failApp = createServer(config, { sonarrFetch: failing.fetch });
 
-      const res = await request(failApp).post('/browse/add').type('form').send(ADD_FORM);
+      const res = await request(failApp).post('/browse/add').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_FORM);
 
       expect(res.status).toBe(303);
       expect(decodeURIComponent(res.headers.location ?? '')).toContain('already been added');
@@ -283,7 +293,7 @@ describe('browse ui', () => {
 
   describe('POST /browse/add-movie', () => {
     it('adds the chosen movie to radarr and redirects', async () => {
-      const res = await request(app).post('/browse/add-movie').type('form').send(ADD_MOVIE_FORM);
+      const res = await request(app).post('/browse/add-movie').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_MOVIE_FORM);
 
       expect(res.status).toBe(303);
       expect(res.headers.location).toContain('/browse?added=');
@@ -303,6 +313,7 @@ describe('browse ui', () => {
     it('rejects an invalid tmdb id', async () => {
       const res = await request(app)
         .post('/browse/add-movie')
+        .set(SAME_ORIGIN_HEADERS)
         .type('form')
         .send({ ...ADD_MOVIE_FORM, tmdbId: 'abc' });
 
@@ -313,7 +324,7 @@ describe('browse ui', () => {
     it('rejects when radarr is not configured', async () => {
       updateSettings(config, { radarrUrl: '', radarrApiKey: '' });
 
-      const res = await request(app).post('/browse/add-movie').type('form').send(ADD_MOVIE_FORM);
+      const res = await request(app).post('/browse/add-movie').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_MOVIE_FORM);
 
       expect(res.status).toBe(400);
       expect(radarr.addCalls).toHaveLength(0);
@@ -328,7 +339,7 @@ describe('browse ui', () => {
       });
       const failApp = createServer(config, { radarrFetch: failing.fetch });
 
-      const res = await request(failApp).post('/browse/add-movie').type('form').send(ADD_MOVIE_FORM);
+      const res = await request(failApp).post('/browse/add-movie').set(SAME_ORIGIN_HEADERS).type('form').send(ADD_MOVIE_FORM);
 
       expect(res.status).toBe(303);
       expect(decodeURIComponent(res.headers.location ?? '')).toContain('already been added');
