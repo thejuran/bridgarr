@@ -225,6 +225,23 @@ describe('server', () => {
       expect(addMovieRes.status).not.toBe(403);
     });
 
+    it('ALLOWED_HOSTS=[nas.local] permits a request whose Host carries the port (M1)', async () => {
+      // Operator sets the documented bare-hostname form; the browser sends the
+      // port. The allowlist must match the port-stripped bare host too, or the
+      // operator is silently 403'd from their own UI under their NAS hostname.
+      const config = loadConfig({ DATA_DIR: dataDir, ALLOWED_HOSTS: 'nas.local' });
+      const app = createServer(config);
+
+      const res = await request(app)
+        .post('/settings')
+        .set('Host', 'nas.local:8485')
+        .set('Origin', 'http://nas.local:8485')
+        .type('form')
+        .send({ quality: '720p', concurrency: '2' });
+      // Host-allowlist passes (not 403); same-origin passes → 303 redirect.
+      expect(res.status).toBe(303);
+    });
+
     it('request logger never logs the apikey query value (T-08-05)', async () => {
       // Behavioral check: the path logged must NOT include the apikey value.
       // We rely on the Task-2 source assertion (grep -n "originalUrl") plus this

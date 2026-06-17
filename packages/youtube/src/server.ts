@@ -68,8 +68,12 @@ function isAllowedHost(host: string | undefined, config: Config): boolean {
     bare = lastColon === -1 ? host : host.slice(0, lastColon);
   }
 
-  // Operator-specified allowlist (ALLOWED_HOSTS env): exact match against full host string.
-  if (config.allowedHosts.includes(host)) return true;
+  // Operator-specified allowlist (ALLOWED_HOSTS env): match against BOTH the
+  // full host string (e.g. nas.local:8485) AND the port-stripped bare host
+  // (e.g. nas.local). The documented form is a bare hostname, but the browser
+  // sends Host with the port — matching only the full string would 403 the
+  // operator under their own documented hostname (and vice-versa).
+  if (config.allowedHosts.includes(host) || config.allowedHosts.includes(bare)) return true;
 
   // Localhost forms.
   if (bare === 'localhost' || bare === '127.0.0.1' || bare === '::1') return true;
