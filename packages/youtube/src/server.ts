@@ -88,14 +88,21 @@ function isAllowedHost(host: string | undefined, config: Config): boolean {
   // Parse as IPv4 only (4 decimal octets).
   const octets = bare.split('.');
   if (octets.length === 4) {
-    const parts = octets.map(Number);
-    if (parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
-      const [a, b] = parts as [number, number, number, number];
-      if (a === 10) return true;
-      if (a === 172 && b >= 16 && b <= 31) return true;
-      if (a === 192 && b === 168) return true;
-      // Tailscale CGNAT: 100.64.0.0/10 → first octet 100, second octet 64–127.
-      if (a === 100 && b >= 64 && b <= 127) return true;
+    // Validate each octet as a CANONICAL decimal string before Number(). Number()
+    // silently accepts hex ('0xa'→10), exponent ('1e1'→10), leading zeros
+    // ('010'→10), and whitespace (' 10'→10), so '0xa.0.0.1' would otherwise
+    // classify as 10/8 private. Browsers never emit these; rejecting them keeps
+    // the DNS-rebinding trusted set from over-accepting non-canonical forms.
+    if (octets.every((o) => /^(0|[1-9][0-9]{0,2})$/.test(o))) {
+      const parts = octets.map(Number);
+      if (parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
+        const [a, b] = parts as [number, number, number, number];
+        if (a === 10) return true;
+        if (a === 172 && b >= 16 && b <= 31) return true;
+        if (a === 192 && b === 168) return true;
+        // Tailscale CGNAT: 100.64.0.0/10 → first octet 100, second octet 64–127.
+        if (a === 100 && b >= 64 && b <= 127) return true;
+      }
     }
   }
 

@@ -258,6 +258,24 @@ describe('server', () => {
       expect(res.status).toBe(303);
     });
 
+    it('rejects non-canonical numeric Host forms as private IPs (M3)', async () => {
+      // Number() over-accepts hex/exponent/leading-zero/whitespace octets:
+      // '0xa.0.0.1' and '1e1.0.0.1' both Number()-classify as 10.0.0.1 (10/8).
+      // Canonical-decimal validation must reject them → 403.
+      const config = loadConfig({ DATA_DIR: dataDir });
+      const app = createServer(config);
+
+      for (const host of ['0xa.0.0.1', '1e1.0.0.1']) {
+        const res = await request(app)
+          .post('/settings')
+          .set('Host', host)
+          .set('Origin', `http://${host}`)
+          .type('form')
+          .send({ quality: '720p', concurrency: '2' });
+        expect(res.status).toBe(403);
+      }
+    });
+
     it('request logger never logs the apikey query value (T-08-05)', async () => {
       // Behavioral check: the path logged must NOT include the apikey value.
       // We rely on the Task-2 source assertion (grep -n "originalUrl") plus this
