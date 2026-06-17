@@ -78,6 +78,12 @@ ${saved ? '<p class="saved">Settings saved.</p>' : ''}
   <label>Cookies file <span class="hint">(Netscape-format cookies passed to yt-dlp; escape hatch for YouTube bot checks. Blank = off)</span>
     <input name="cookiesFile" value="${escapeHtml(s.cookiesFile)}" placeholder="/config/cookies.txt">
   </label>
+  <label>Require authentication <span class="hint">(when on, this page and the state-changing browse actions require the app API key; supply <code>?apikey=YOUR_KEY</code> once per browser session to unlock — the key is never shown again after rotating, so keep it somewhere safe)</span>
+    <select name="requireAuth">
+      <option value="on"${s.requireAuth ? ' selected' : ''}>on</option>
+      <option value="off"${s.requireAuth ? '' : ' selected'}>off</option>
+    </select>
+  </label>
   <h2>Sonarr / Radarr</h2>
   <label>Sonarr URL <span class="hint">(enables "Add to Sonarr" in browse; optional)</span>
     <input name="sonarrUrl" value="${escapeHtml(s.sonarrUrl)}" placeholder="http://sonarr:8989">
@@ -184,12 +190,18 @@ export function handleSettingsSave(config: Config, req: Request, res: Response):
     res.status(400).send('invalid titleFilter');
     return;
   }
+  const requireAuth = str('requireAuth');
+  if (requireAuth !== undefined && requireAuth !== 'on' && requireAuth !== 'off') {
+    res.status(400).send('invalid requireAuth');
+    return;
+  }
 
   const patch: Partial<Settings> = { ...minutes };
   if (quality !== undefined) patch.quality = quality as Settings['quality'];
   if (concurrency !== undefined) patch.concurrency = concurrency;
   if (releaseQuality !== undefined) patch.releaseQuality = releaseQuality;
   if (titleFilter !== undefined) patch.titleFilter = titleFilter === 'on';
+  if (requireAuth !== undefined) patch.requireAuth = requireAuth === 'on';
   const apiKey = str('apiKey');
   if (apiKey) patch.apiKey = apiKey; // empty string would lock Sonarr out — ignore
   // *arr keys: blank = keep existing (D-04), mirroring the app-key guard above.

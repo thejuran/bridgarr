@@ -32,6 +32,14 @@ export interface Settings {
   titleFilter: boolean;
   /** Netscape cookies file passed to yt-dlp (bot-check escape hatch); blank = off. */
   cookiesFile: string;
+  /**
+   * Optional app-key gate on the settings UI + state-changing browse POSTs; default off — LAN-trust model preserved.
+   * When true, GET /, POST /settings, POST /settings/rotate-key, POST /browse/add,
+   * POST /browse/add-movie, GET /browse/add, and GET /browse/add-movie require the app key
+   * (via ?apikey= query param or a short-lived session cookie). /api, /nzb/:token, and
+   * read-only GET /browse stay open regardless (D-05, D-07).
+   */
+  requireAuth: boolean;
 }
 
 export interface Config {
@@ -65,6 +73,7 @@ function defaultSettings(dataDir: string): Settings {
     minMovieMinutes: 45,
     titleFilter: true,
     cookiesFile: '',
+    requireAuth: false,
   };
 }
 
