@@ -345,4 +345,43 @@ describe('browse ui', () => {
       expect(decodeURIComponent(res.headers.location ?? '')).toContain('already been added');
     });
   });
+
+  // REL-04: timeout error must surface as a clean generic message through the REAL browse route,
+  // not as a stack trace / DOMException / raw TimeoutError string (CLAUDE.md: never expose
+  // internal error details to end users).
+  describe('GET /browse/add — Sonarr timeout renders clean error (REL-04)', () => {
+    it('shows generic "Could not reach Sonarr" message when sonarr fetch times out', async () => {
+      const timeoutFetch: typeof fetch = (_input, _init) =>
+        Promise.reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+      const timeoutApp = createServer(config, { sonarrFetch: timeoutFetch });
+
+      const res = await request(timeoutApp).get('/browse/add?title=Bluey');
+
+      expect(res.status).toBe(502);
+      expect(res.text).toContain('Could not reach Sonarr');
+      expect(res.text).not.toContain('DOMException');
+      expect(res.text).not.toContain('TimeoutError');
+      expect(res.text).not.toContain('aborted due to timeout');
+      expect(res.text).not.toMatch(/\bat \w+.*\(.*:\d+:\d+\)/);
+      expect(res.text).not.toContain('node:internal');
+    });
+  });
+
+  describe('GET /browse/add-movie — Radarr timeout renders clean error (REL-04)', () => {
+    it('shows generic "Could not reach Radarr" message when radarr fetch times out', async () => {
+      const timeoutFetch: typeof fetch = (_input, _init) =>
+        Promise.reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+      const timeoutApp = createServer(config, { radarrFetch: timeoutFetch });
+
+      const res = await request(timeoutApp).get('/browse/add-movie?title=Fracture');
+
+      expect(res.status).toBe(502);
+      expect(res.text).toContain('Could not reach Radarr');
+      expect(res.text).not.toContain('DOMException');
+      expect(res.text).not.toContain('TimeoutError');
+      expect(res.text).not.toContain('aborted due to timeout');
+      expect(res.text).not.toMatch(/\bat \w+.*\(.*:\d+:\d+\)/);
+      expect(res.text).not.toContain('node:internal');
+    });
+  });
 });

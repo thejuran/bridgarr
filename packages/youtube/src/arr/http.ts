@@ -3,6 +3,9 @@
  * header, error-message extraction, and JSON-shape guards.
  */
 
+/** Abort *arr API fetches after this many ms so a black-holed URL cannot hang the UI. */
+const ARR_TIMEOUT_MS = 10_000;
+
 export interface ArrHttpOptions {
   fetchFn?: typeof fetch;
 }
@@ -27,7 +30,11 @@ export class ArrHttp {
   async request(path: string, init: RequestInit = {}): Promise<unknown> {
     const headers: Record<string, string> = { 'X-Api-Key': this.apiKey };
     if (init.body !== undefined) headers['content-type'] = 'application/json';
-    const res = await this.fetchFn(`${this.baseUrl}/api/v3${path}`, { ...init, headers });
+    const res = await this.fetchFn(`${this.baseUrl}/api/v3${path}`, {
+      ...init,
+      headers,
+      signal: AbortSignal.timeout(ARR_TIMEOUT_MS),
+    });
     if (!res.ok) throw new Error(`${this.service} ${res.status}: ${await errorDetail(res)}`);
     return res.json();
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SonarrClient } from '../../src/sonarr/client.js';
 import { BLUEY_2018, fakeSonarr, type FakeSonarr } from '../helpers/sonarr.js';
+import { ArrHttp } from '../../src/arr/http.js';
 
 function client(fake: FakeSonarr = fakeSonarr(), baseUrl = 'http://sonarr.test:8989'): SonarrClient {
   return new SonarrClient(baseUrl, 'sonarr-key', { fetchFn: fake.fetch });
@@ -79,5 +80,36 @@ describe('SonarrClient', () => {
         searchForMissingEpisodes: false,
       }),
     ).rejects.toThrow(/already been added/);
+  });
+});
+
+describe('ArrHttp timeout signal (REL-04)', () => {
+  it('passes an AbortSignal to the fetch function', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const capturingFetch: typeof fetch = (input, init) => {
+      capturedSignal = init?.signal ?? undefined;
+      // Resolve immediately with a valid response so the test is fast.
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    };
+    const http = new ArrHttp('Sonarr', 'http://sonarr.test:8989', 'key', {
+      fetchFn: capturingFetch,
+    });
+    await http.request('/series/lookup?term=Bluey');
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('rejects when the fetch rejects with a TimeoutError', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const timeoutFetch: typeof fetch = (_input, init) => {
+      capturedSignal = init?.signal ?? undefined;
+      return Promise.reject(
+        new DOMException('The operation was aborted due to timeout', 'TimeoutError'),
+      );
+    };
+    const http = new ArrHttp('Sonarr', 'http://sonarr.test:8989', 'key', {
+      fetchFn: timeoutFetch,
+    });
+    await expect(http.request('/series/lookup?term=Bluey')).rejects.toThrow();
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
   });
 });
