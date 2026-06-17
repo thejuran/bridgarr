@@ -74,6 +74,37 @@ describe('handleSab - get_config', () => {
     const body = (res as unknown as { body: unknown }).body as { config: { misc: { complete_dir: string } } };
     expect(body.config.misc.complete_dir).toBe('/tmp/complete');
   });
+
+  it('reports completed-download retention so Sonarr health check passes (SONR-01)', () => {
+    // Contract verified against Sonarr Sabnzbd.cs RemovesCompletedDownloads (develop, lines 538-571):
+    //   history_retention_option: 'all' → modern Sonarr v4.3+ switch case returns false (downloads retained)
+    //   history_retention: '0'          → legacy path: "0" != "0" === false (downloads retained)
+    //   history_retention_number: 0     → int field Sonarr model expects; inert when option='all'
+    const queue = new DownloadQueue();
+    const req = makeReq({ apikey: 'testkey123', mode: 'get_config' });
+    const res = makeRes();
+
+    handleSab({ settings: testSettings, queue }, req as Request, res as unknown as Response);
+
+    const body = (res as unknown as { body: unknown }).body as {
+      config: { misc: Record<string, unknown> };
+    };
+    const misc = body.config.misc;
+
+    // modern Sonarr v4.3+: switch(option) { case 'all': return false; } → retained
+    expect(misc.history_retention_option).toBe('all');
+    // legacy Sonarr (v3, v4.0–v4.2): retention != "0" → false → retained
+    expect(misc.history_retention).toBe('0');
+    // int model field; inert when option==='all'
+    expect(misc.history_retention_number).toBe(0);
+    // complete_dir still present and unchanged
+    expect(misc.complete_dir).toBe('/tmp/complete');
+
+    // Minimal scope: ONLY these four fields in misc (D-09 — no speculative additions)
+    expect(Object.keys(misc).sort()).toEqual(
+      ['complete_dir', 'history_retention', 'history_retention_number', 'history_retention_option'].sort(),
+    );
+  });
 });
 
 describe('handleSab - addfile', () => {
