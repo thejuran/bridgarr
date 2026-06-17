@@ -462,6 +462,29 @@ describe('server', () => {
       expect(getSetCookieHeader(res)).toBeUndefined();
     });
 
+    it('gate ON: a multibyte ?apikey of equal JS length returns 401, not 500 (W2)', async () => {
+      // The stored app key is 32 ASCII chars (32 bytes). A supplied key with the
+      // SAME JS string length (32 UTF-16 units) but a multibyte char encodes to
+      // MORE than 32 bytes. safeEqual must compare byte lengths before calling
+      // crypto.timingSafeEqual (which throws RangeError on a byte-length mismatch)
+      // — so this returns the auth gate's intended 401, never a 500 + error log.
+      const config = loadConfig({ DATA_DIR: dataDir });
+      updateSettings(config, { requireAuth: true });
+      const app = createServer(config);
+
+      // Real key length is 32 JS chars; build a 32-JS-char probe containing 'ñ'
+      // (1 UTF-16 unit, 2 bytes in UTF-8) so .length matches but byte length does not.
+      expect(config.settings.apiKey.length).toBe(32);
+      const probe = 'ñ' + 'a'.repeat(config.settings.apiKey.length - 1); // 32 JS chars, 33 bytes
+      expect(probe.length).toBe(config.settings.apiKey.length);
+      expect(Buffer.from(probe).length).toBeGreaterThan(Buffer.from(config.settings.apiKey).length);
+
+      const res = await request(app).get(`/?apikey=${encodeURIComponent(probe)}`);
+      expect(res.status).toBe(401);
+      expect(res.status).not.toBe(500);
+      expect(getSetCookieHeader(res)).toBeUndefined();
+    });
+
     it('gate ON: GET /nzb/:token stays open regardless of the gate (SAB-emulation clients cannot send the key)', async () => {
       const config = loadConfig({ DATA_DIR: dataDir });
       updateSettings(config, { requireAuth: true });

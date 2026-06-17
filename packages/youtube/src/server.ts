@@ -225,8 +225,17 @@ function parseCookie(cookieHeader: string | undefined, name: string): string | u
  * is a publicly known constant for this application, not secret itself.
  */
 function safeEqual(a: string, b: string): boolean {
+  // Cheap fast-path on JS string length (UTF-16 units). NOT sufficient on its
+  // own: a multibyte input (e.g. 'ñ') can share the same .length as the
+  // expected value yet differ in BYTE length, and timingSafeEqual throws a
+  // RangeError when its two buffers differ in byte length. So encode first and
+  // compare BYTE lengths before calling timingSafeEqual — a mismatched input
+  // must return false (→ 401), never throw (→ 500 + error-log spam).
   if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
 }
 
 /**
