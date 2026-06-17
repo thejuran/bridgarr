@@ -202,9 +202,11 @@ export function handleSettingsSave(config: Config, req: Request, res: Response):
   if (releaseQuality !== undefined) patch.releaseQuality = releaseQuality;
   if (titleFilter !== undefined) patch.titleFilter = titleFilter === 'on';
   if (requireAuth !== undefined) patch.requireAuth = requireAuth === 'on';
-  const apiKey = str('apiKey');
-  if (apiKey) patch.apiKey = apiKey; // empty string would lock Sonarr out — ignore
-  // *arr keys: blank = keep existing (D-04), mirroring the app-key guard above.
+  // The app API key is NEVER set via POST /settings — it changes ONLY via the
+  // rotate route (POST /settings/rotate-key), which regenerates it randomly
+  // (D-02, rotate-only). Reading an apiKey body field here would let a crafted
+  // same-origin POST set an attacker-chosen key, bypassing Rotate — so we don't.
+  // *arr keys: blank = keep existing (D-04).
   // CSRF / host-allowlist enforcement runs as route middleware in server.ts before this handler.
   const sonarrApiKey = str('sonarrApiKey');
   if (sonarrApiKey) patch.sonarrApiKey = sonarrApiKey;

@@ -182,6 +182,24 @@ describe('settings ui', () => {
     expect(reloaded.settings.apiKey).toBe(config.settings.apiKey);
   });
 
+  it('does NOT set the app api key via POST /settings — rotate-only (D-02)', async () => {
+    // A crafted same-origin POST with an apiKey body field must be ignored:
+    // the app key changes ONLY via POST /settings/rotate-key.
+    const before = config.settings.apiKey;
+
+    const res = await request(app)
+      .post('/settings')
+      .set(SAME_ORIGIN_HEADERS)
+      .type('form')
+      .send({ quality: '1080p', concurrency: '2', apiKey: 'attacker-chosen-key' });
+
+    expect(res.status).toBe(303);
+    const reloaded = loadConfig({ DATA_DIR: dataDir });
+    // The key is unchanged — the body field had no effect.
+    expect(reloaded.settings.apiKey).toBe(before);
+    expect(reloaded.settings.apiKey).not.toBe('attacker-chosen-key');
+  });
+
   it('rotate reveals a new key once and invalidates the old one (SEC-01 / D-02)', async () => {
     const before = config.settings.apiKey;
 
