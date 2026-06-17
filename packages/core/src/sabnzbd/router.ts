@@ -56,7 +56,14 @@ export function handleSab(ctx: SabContext, req: Request, res: Response): void {
         config: {
           misc: {
             complete_dir: ctx.settings.completeDir,
-            history_retention: 'all',
+            // Clears Sonarr's "removes completed downloads" health warning across both code paths
+            // (verified against Sonarr Sabnzbd.cs RemovesCompletedDownloads, develop 2026-06-17):
+            //   option='all' → modern Sonarr v4.3+ switch case returns false (downloads retained)
+            //   retention='0' → legacy Sonarr path: "0" != "0" === false (downloads retained)
+            //   retention_number=0 → int field Sonarr model expects; inert when option='all'
+            history_retention_option: 'all',
+            history_retention: '0',
+            history_retention_number: 0,
           },
           categories: CATEGORIES.map((name, order) => ({
             name,
