@@ -78,6 +78,12 @@ function isAllowedHost(host: string | undefined, config: Config): boolean {
   // Localhost forms.
   if (bare === 'localhost' || bare === '127.0.0.1' || bare === '::1') return true;
 
+  // Tailscale IPv6 ULA: each node gets an fd7a:115c:a1e0::/48 ULA v6 address in
+  // addition to its 100.64/10 CGNAT v4 (handled below). A browser preferring IPv6
+  // over Tailscale sends Host: [fd7a:...]; accept the documented Tailscale /48
+  // prefix, mirroring the CGNAT rationale. Match case-insensitively (v6 is hex).
+  if (bare.toLowerCase().startsWith('fd7a:115c:a1e0:')) return true;
+
   // Private-LAN IPv4 + Tailscale CGNAT (RFC1918: 10/8, 172.16–31/12, 192.168/16; CGNAT: 100.64/10).
   // Parse as IPv4 only (4 decimal octets).
   const octets = bare.split('.');

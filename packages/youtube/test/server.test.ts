@@ -242,6 +242,22 @@ describe('server', () => {
       expect(res.status).toBe(303);
     });
 
+    it('permits a Tailscale IPv6 ULA Host [fd7a:115c:a1e0::1] (M2)', async () => {
+      // Tailscale assigns each node an fd7a:115c:a1e0::/48 ULA v6 address. A browser
+      // preferring IPv6 over Tailscale must not be 403'd with the host-allowlist on.
+      const config = loadConfig({ DATA_DIR: dataDir });
+      const app = createServer(config);
+
+      const res = await request(app)
+        .post('/settings')
+        .set('Host', '[fd7a:115c:a1e0::1]')
+        .set('Origin', 'http://[fd7a:115c:a1e0::1]')
+        .type('form')
+        .send({ quality: '720p', concurrency: '2' });
+      // Host-allowlist passes (not 403); same-origin passes → 303 redirect.
+      expect(res.status).toBe(303);
+    });
+
     it('request logger never logs the apikey query value (T-08-05)', async () => {
       // Behavioral check: the path logged must NOT include the apikey value.
       // We rely on the Task-2 source assertion (grep -n "originalUrl") plus this
