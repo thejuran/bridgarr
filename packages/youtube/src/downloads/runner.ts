@@ -49,6 +49,8 @@ export class DownloadRunner {
   private readonly ytdlpPath: string;
 
   private readonly running = new Set<string>();
+  /** Tracks live ChildProcess per nzoId. Untracked on the FIRST of exit/close/error. */
+  private readonly procByNzoId = new Map<string, ChildProcess>();
   private pending: Promise<void>[] = [];
   private timer: NodeJS.Timeout | null = null;
 
@@ -78,10 +80,72 @@ export class DownloadRunner {
     }
   }
 
+  /**
+   * Handle a job removal fired synchronously by DownloadQueue.remove().
+   * Frees the concurrency slot, sends a guarded SIGTERM to the live process
+   * (if any), and immediately schedules the next queued job via tick().
+   *
+   * This is the BLOCKER fix for REL-01: without this call, the next queued job
+   * waits up to ~1s for the interval to fire. With it, the next job starts as
+   * a direct consequence of the delete.
+   */
+  onRemove(nzoId: string): void {
+    // (1) Free the slot immediately. Set.delete of an absent key is a no-op —
+    //     safe against the case where the job was never in running (queued-only).
+    this.running.delete(nzoId);
+
+    // (2) SIGTERM the live process, guarded. Map membership is the liveness
+    //     signal (NOT proc.killed): we untrack on the FIRST of exit/close/error,
+    //     so if the proc is still in the map it has not yet exited.
+    const proc = this.procByNzoId.get(nzoId);
+    if (proc) {
+      try {
+        proc.kill('SIGTERM');
+      } catch (err) {
+        logger.warn({ nzoId, err }, 'SIGTERM on already-exited child');
+      }
+      this.procByNzoId.delete(nzoId);
+    }
+
+    // (3) Schedule the next queued job NOW. This is the core of the BLOCKER fix.
+    this.tick();
+  }
+
+  /**
+   * Sweep orphaned download temp dirs: any <downloadDir>/<name> directory that
+   * has no matching active job in the queue is removed. Called at boot before
+   * runner.start() so leftover dirs from a crashed/restarted process are cleaned
+   * up. Errors are logged but never thrown — a failed sweep must not block
+   * startup.
+   */
+  async sweepOrphans(): Promise<void> {
+    try {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(this.config.settings.downloadDir, { withFileTypes: true });
+      } catch {
+        // downloadDir doesn't exist yet or isn't readable — nothing to sweep
+        return;
+      }
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        // Never follow symlinks — only remove plain directories
+        if (!this.queue.get(entry.name)) {
+          const dir = path.join(this.config.settings.downloadDir, entry.name);
+          await fsp.rm(dir, { recursive: true, force: true });
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, 'orphan sweep failed');
+    }
+  }
+
   /** Resolve once all in-flight finalizations have settled (for tests/shutdown). */
   async idle(): Promise<void> {
     while (this.pending.length > 0) {
-      await Promise.all(this.pending.splice(0));
+      // Await a snapshot of the current in-flight promises so self-eviction
+      // racing idle()'s loop cannot strand a promise (REL-03).
+      await Promise.all([...this.pending]);
     }
   }
 
@@ -107,6 +171,15 @@ export class DownloadRunner {
       return;
     }
 
+    // Track the proc immediately. Untrack on the FIRST of exit/close/error
+    // (HIGH #2 fix): Node emits 'exit' before 'close', so untracking only on
+    // close/error leaves the proc tracked across the exit→close gap during
+    // which the PID may be reused.
+    this.procByNzoId.set(nzoId, proc);
+    proc.on('exit', () => {
+      this.procByNzoId.delete(nzoId);
+    });
+
     logger.info({ nzoId, title: job.payload.title, url: job.payload.pageUrl }, 'download started');
 
     let stderrTail = '';
@@ -125,6 +198,9 @@ export class DownloadRunner {
     const once = (fn: () => Promise<void>) => {
       if (settled) return;
       settled = true;
+      // Also untrack here (first of close/error fires after exit untracked it,
+      // Map.delete of an absent key is a no-op — idempotent).
+      this.procByNzoId.delete(nzoId);
       this.settle(nzoId, fn);
     };
     proc.on('error', (err) => once(() => this.failJob(job, jobDir, message(err))));
@@ -146,6 +222,9 @@ export class DownloadRunner {
       .finally(() => {
         this.running.delete(nzoId);
         this.tick();
+        // REL-03: self-evict this settled promise from pending[] by identity
+        const i = this.pending.indexOf(done);
+        if (i !== -1) this.pending.splice(i, 1);
       });
     this.pending.push(done);
   }
@@ -163,7 +242,7 @@ export class DownloadRunner {
   }
 
   private async completeJob(job: DownloadJob, jobDir: string): Promise<void> {
-    // Job deleted mid-download → discard the output silently.
+    // ENTRY guard: job deleted mid-download → discard the output silently.
     if (!this.queue.get(job.nzoId)) {
       await fsp.rm(jobDir, { recursive: true, force: true });
       return;
@@ -176,7 +255,27 @@ export class DownloadRunner {
     const destDir = path.join(this.config.settings.completeDir, job.category);
     await fsp.mkdir(destDir, { recursive: true });
     const dest = path.join(destDir, path.basename(file));
+
+    // PRE-MOVE re-check (HIGH #1 fix — close the cheap window): if the job was
+    // deleted between the entry check and here, discard before any write to
+    // completeDir.
+    if (!this.queue.get(job.nzoId)) {
+      await fsp.rm(jobDir, { recursive: true, force: true });
+      return;
+    }
+
     await move(file, dest);
+
+    // POST-MOVE re-check (HIGH #1 fix — close the residual TOCTOU window): if
+    // the job was deleted WHILE the move was in flight, the file already exists
+    // at dest (rename completed / EXDEV copyFile completed) — delete it and the
+    // jobDir, and do NOT markCompleted.
+    if (!this.queue.get(job.nzoId)) {
+      await fsp.rm(dest, { force: true });
+      await fsp.rm(jobDir, { recursive: true, force: true });
+      return;
+    }
+
     const { size } = await fsp.stat(dest);
     this.queue.markCompleted(job.nzoId, dest, size);
     await fsp.rm(jobDir, { recursive: true, force: true });

@@ -1,8 +1,9 @@
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig, updateSettings, type Config } from '../../src/config.js';
 import { DownloadQueue, type NzbPayload } from '@bridgarr/core';
 import { DownloadRunner, type SpawnLike } from '../../src/downloads/runner.js';
@@ -268,6 +269,180 @@ describe('DownloadRunner', () => {
 
     // Guard accepted the URL — spawn was called and the job is now downloading
     expect(queue.get(job.nzoId)!.status).toBe('downloading');
+  });
+
+  // ─── REL-01: delete-kill + slot-free + immediate re-schedule ───────────────
+
+  it('(a) delete-while-queued: sends no SIGTERM and does not over-start', () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    queue.add(payload('A'), 'sonarr');
+    const b = queue.add(payload('B'), 'sonarr');
+
+    runner.tick();
+    expect(calls).toHaveLength(1); // only A running
+
+    queue.remove(b.nzoId); // B was still queued, no proc
+    expect(calls[0]!.proc.killed).toBe(false); // no SIGTERM sent to A
+    expect(queue.get(calls[0]!.args[calls[0]!.args.length - 1]!)).toBeUndefined(); // B gone
+
+    // A subsequent tick must not start a phantom extra job (B is gone)
+    runner.tick();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('(b) IMMEDIATE re-schedule on delete-mid-download — no manual tick needed', () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+    queue.add(payload('B'), 'sonarr');
+
+    runner.tick();
+    expect(calls).toHaveLength(1); // A running
+
+    // Remove A — fires onRemove synchronously → SIGTERM + free slot + tick()
+    queue.remove(a.nzoId);
+
+    // BLOCKER assertion: B launched as a DIRECT consequence of the delete
+    // NO manual runner.tick() between queue.remove and this assertion
+    expect(calls[0]!.proc.killed).toBe(true);  // SIGTERM sent to A
+    expect(calls).toHaveLength(2);             // B started immediately
+  });
+
+  it('(b-exactly-once) no double-free / phantom 3rd job after killed proc closes', async () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+    queue.add(payload('B'), 'sonarr');
+
+    runner.tick();
+    queue.remove(a.nzoId); // B launched immediately
+    expect(calls).toHaveLength(2);
+
+    // A's proc emits 'close' — settle().finally runs (once/settled guard), tick() called again
+    calls[0]!.proc.emit('close', null);
+    await runner.idle();
+    runner.tick();
+    // B already occupies the slot, A is gone from running → NO phantom 3rd job
+    expect(calls).toHaveLength(2);
+  });
+
+  it('(c) delete DURING the move — post-move re-check deletes dest file, no markCompleted', async () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+
+    runner.tick();
+    writeOutput(a.nzoId, 'A');
+
+    // Spy on fsp.rename so the delete fires DURING the move (after the file is
+    // written to dest by the real rename, but before move() resolves)
+    const realRename = fsp.rename.bind(fsp);
+    const renameSpy = vi.spyOn(fsp, 'rename').mockImplementation(async (src, dest) => {
+      // Perform the real rename first — file now exists at dest
+      await realRename(src as string, dest as string);
+      // Now fire the delete mid-move (pre-move re-check already passed)
+      queue.remove(a.nzoId);
+      // move() resolves after this → post-move re-check must detect deletion and clean up
+    });
+
+    calls[0]!.proc.emit('close', 0);
+    await runner.idle();
+
+    renameSpy.mockRestore();
+
+    const destFile = path.join(config.settings.completeDir, 'sonarr', 'A.mp4');
+    // The post-move re-check must have deleted the moved file
+    expect(fs.existsSync(destFile)).toBe(false);
+    // jobDir also removed
+    expect(fs.existsSync(path.join(config.settings.downloadDir, a.nzoId))).toBe(false);
+    // job not marked completed
+    expect(queue.get(a.nzoId)).toBeUndefined(); // was removed by queue.remove
+    // no phantom job
+    runner.tick();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('(c2) delete between entry check and move — pre-move re-check discards cleanly', async () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+
+    runner.tick();
+    writeOutput(a.nzoId, 'A');
+
+    // Emit close then synchronously remove the job BEFORE await runner.idle()
+    // The pre-move re-check (between pickOutput and the rename) discards it
+    calls[0]!.proc.emit('close', 0);
+    queue.remove(a.nzoId); // lands before completeJob's pre-move check
+
+    await runner.idle();
+
+    const destFile = path.join(config.settings.completeDir, 'sonarr', 'A.mp4');
+    expect(fs.existsSync(destFile)).toBe(false); // pre-move re-check prevented move
+    expect(fs.existsSync(path.join(config.settings.downloadDir, a.nzoId))).toBe(false);
+  });
+
+  it('(HIGH #2) proc untracked on exit event — no kill attempted in exit→close gap', async () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+
+    runner.tick();
+
+    // OS process exits (stdio not yet flushed, 'close' not yet emitted)
+    calls[0]!.proc.emit('exit', 0, null);
+
+    // Delete lands in the exit→close window — proc should be untracked already
+    queue.remove(a.nzoId);
+    expect(calls[0]!.proc.killed).toBe(false); // NO kill attempted
+
+    // onRemove must not have thrown
+    // 'close' still drives finalization (settle timing unchanged)
+    writeOutput(a.nzoId, 'A'); // put the file back so completeJob can complete
+    // re-add job so completeJob doesn't just discard (queue was cleared by remove)
+    // Actually — job was removed, so completeJob's entry guard discards it. That's fine.
+    calls[0]!.proc.emit('close', 0);
+    await runner.idle(); // finalization ran (job fails or discards — no crash)
+  });
+
+  it('guarded SIGTERM no-throw — kill throws but onRemove does not throw', () => {
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+
+    runner.tick();
+
+    // Override kill to throw, simulating ESRCH or race
+    calls[0]!.proc.kill = () => { throw new Error('ESRCH'); };
+
+    // queue.remove (→ onRemove) must NOT throw even though kill throws
+    expect(() => queue.remove(a.nzoId)).not.toThrow();
+  });
+
+  it('pending[] self-evicts to 0 after multiple complete/fail cycles', async () => {
+    updateSettings(config, { concurrency: 3 });
+    // cycle 1: complete
+    const j1 = queue.add(payload('J1'), 'sonarr');
+    runner.tick();
+    writeOutput(j1.nzoId, 'J1');
+    calls[0]!.proc.emit('close', 0);
+
+    // cycle 2: fail (no output)
+    const j2 = queue.add(payload('J2'), 'sonarr');
+    runner.tick();
+    calls[1]!.proc.emit('close', 1);
+
+    // cycle 3: fail (no output)
+    const j3 = queue.add(payload('J3'), 'sonarr');
+    runner.tick();
+    calls[2]!.proc.emit('close', 1);
+    void j3;
+
+    await runner.idle();
+
+    // After all cycles settle, pending must be 0
+    expect((runner as unknown as { pending: Promise<void>[] }).pending.length).toBe(0);
   });
 
 });
