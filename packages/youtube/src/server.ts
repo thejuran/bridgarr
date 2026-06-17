@@ -167,8 +167,10 @@ function sameOriginGuard(config: Config) {
           res.status(403).send('forbidden');
           return;
         }
-      } catch {
-        // Malformed Origin → treat as mismatch → 403.
+      } catch (err) {
+        // Malformed Origin → treat as mismatch → 403. Log at debug (not a secret;
+        // Origin is a request header) — never swallow silently (CLAUDE.md).
+        logger.debug({ origin, err }, 'malformed Origin header — treating as mismatch');
         res.status(403).send('forbidden');
         return;
       }
@@ -182,8 +184,10 @@ function sameOriginGuard(config: Config) {
             res.status(403).send('forbidden');
             return;
           }
-        } catch {
-          // Malformed Referer → treat as mismatch → 403.
+        } catch (err) {
+          // Malformed Referer → treat as mismatch → 403. Log at debug (not a secret;
+          // Referer is a request header) — never swallow silently (CLAUDE.md).
+          logger.debug({ referer, err }, 'malformed Referer header — treating as mismatch');
           res.status(403).send('forbidden');
           return;
         }
