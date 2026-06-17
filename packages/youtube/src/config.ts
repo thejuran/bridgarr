@@ -39,6 +39,12 @@ export interface Config {
   port: number;
   dataDir: string;
   settings: Settings;
+  /**
+   * Operator override naming the real NAS hostname/IP for the DNS-rebinding
+   * host-allowlist; parsed from the ALLOWED_HOSTS env var (comma-separated).
+   * Unset → guards use their built-in localhost + private-LAN-IP default.
+   */
+  allowedHosts: string[];
 }
 
 const SETTINGS_FILE = 'settings.json';
@@ -74,11 +80,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const settings = loadSettings<Settings>(settingsPath, defaultSettings(dataDir));
   saveSettings(settingsPath, settings);
 
+  // ALLOWED_HOSTS: operator override for the DNS-rebinding host-allowlist (T-08-07 / T-08-08).
+  // Comma-separated list of host[:port] entries the operator's real NAS hostname/IP.
+  // When unset, the guards fall back to their built-in localhost + private-LAN-IP-literal default.
+  const allowedHosts = env.ALLOWED_HOSTS
+    ? env.ALLOWED_HOSTS.split(',')
+        .map((h) => h.trim())
+        .filter(Boolean)
+    : [];
+
   return {
     host: env.HOST ?? '0.0.0.0',
     port: env.PORT ? Number(env.PORT) : 8485,
     dataDir,
     settings,
+    allowedHosts,
   };
 }
 
