@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
 import type { Config } from './config.js';
@@ -180,6 +181,118 @@ function sameOriginGuard(config: Config) {
   };
 }
 
+/**
+ * Derive a stable unlock token from the app key.
+ *
+ * The token stored in the session cookie is the SHA-256 hex digest of the raw key.
+ * This means:
+ *   1. The raw key is never placed in a cookie — only a one-way hash of it is.
+ *   2. Rotating the key (Plan 01) immediately invalidates all outstanding cookies
+ *      because the expected token (sha256 of the NEW key) no longer matches the
+ *      cookie value (sha256 of the OLD key).
+ *   3. No server-side session store is needed — the comparison is stateless.
+ */
+function unlockToken(apiKey: string): string {
+  return crypto.createHash('sha256').update(apiKey).digest('hex');
+}
+
+/**
+ * Parse a single named cookie from the raw Cookie header string.
+ * Returns undefined if the header is absent or the cookie is not found.
+ * Does NOT depend on cookie-parser — parsed inline to avoid adding a dependency.
+ */
+function parseCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  for (const part of cookieHeader.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const k = part.slice(0, eq).trim();
+    const v = part.slice(eq + 1).trim();
+    if (k === name) return v;
+  }
+  return undefined;
+}
+
+/**
+ * Constant-time string comparison using crypto.timingSafeEqual.
+ *
+ * Returns true only if `a` and `b` are the same length AND have the same bytes.
+ * The length guard is essential: timingSafeEqual throws if buffers differ in
+ * length, so we return false (not throw) on a length mismatch — but we must
+ * NOT short-circuit on mismatched length in a way that creates a timing oracle,
+ * since returning immediately on length mismatch leaks the expected value's length.
+ * Acceptable here because the key length (sha256 hex = 64 chars; raw key = 32 chars)
+ * is a publicly known constant for this application, not secret itself.
+ */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * Cookie name used for the unlock session. Not a secret — the VALUE is the secret
+ * (sha256 of the api key). HttpOnly; SameSite=Lax; Path=/; Max-Age=28800 (8 hours).
+ * No Secure flag: the LAN app serves plain HTTP by design (not HTTPS) — documented.
+ */
+const AUTH_COOKIE = 'bridgarr_session';
+/** Session lifetime in seconds (8 hours). */
+const AUTH_COOKIE_MAX_AGE = 8 * 60 * 60;
+
+/**
+ * requireAuthGate — optional authentication gate for the state-changing surface.
+ *
+ * When config.settings.requireAuth is false: pass-through (no-op). Plan 01's
+ * sameOriginGuard/hostAllowlistGuard are the ONLY guards in that case.
+ *
+ * When true:
+ *   - Accept if ?apikey=KEY matches the stored key (constant-time compare). On
+ *     success, set a short-lived HttpOnly session cookie carrying sha256(key).
+ *   - Accept if the session cookie carries sha256(current key) (constant-time).
+ *   - Otherwise: respond 401 with a minimal unlock prompt. Never echo the key.
+ *
+ * Applied AFTER Plan 01's guards on the relevant routes:
+ *   - sameOriginGuard → requireAuthGate on the four state-changing POSTs
+ *   - hostAllowlistGuard → requireAuthGate on the two credential-backed GET lookups
+ *   - requireAuthGate (first middleware, no guard before it) on GET /
+ *
+ * T-08-07: timingSafeEqual with length guard — no timing oracle on the key.
+ * T-08-08: HttpOnly + SameSite=Lax + no Secure (LAN plain HTTP).
+ * T-08-13: logger logs req.path (not query string) — the ?apikey value is not logged.
+ */
+function requireAuthGate(config: Config) {
+  return function (req: Request, res: Response, next: NextFunction): void {
+    if (!config.settings.requireAuth) {
+      next();
+      return;
+    }
+
+    const key = config.settings.apiKey;
+    const expectedToken = unlockToken(key);
+
+    // Check ?apikey= query param first.
+    const supplied = typeof req.query.apikey === 'string' ? req.query.apikey : undefined;
+    if (supplied !== undefined && safeEqual(supplied, key)) {
+      // Valid key supplied — set the unlock session cookie and allow.
+      res.setHeader(
+        'Set-Cookie',
+        `${AUTH_COOKIE}=${expectedToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}`,
+      );
+      next();
+      return;
+    }
+
+    // Check session cookie.
+    const cookieVal = parseCookie(req.headers.cookie, AUTH_COOKIE);
+    if (cookieVal !== undefined && safeEqual(cookieVal, expectedToken)) {
+      next();
+      return;
+    }
+
+    // Neither valid key nor valid cookie — reject.
+    res.status(401).type('text').send('Locked. Append ?apikey=YOUR_KEY to unlock.');
+  };
+}
+
 export function createServer(config: Config, deps: ServerDeps = {}): Express {
   const queue = deps.queue ?? new DownloadQueue();
   const ctx: AppContext = {
@@ -200,25 +313,41 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
 
   app.get('/healthz', healthzHandler('bridgarr-youtube'));
 
-  app.get('/', (req, res) => {
+  // GET /: requireAuthGate is first (no sameOriginGuard — GET is not state-changing).
+  // When requireAuth is off, the gate is a pass-through; behavior unchanged (D-05).
+  app.get('/', requireAuthGate(config), (req, res) => {
     res.type('html').send(renderSettingsPage(config, req.query.saved === '1'));
   });
 
   // State-changing POSTs: sameOriginGuard (Host-allowlist FIRST, then Origin/Host equality)
   // enforced on all four routes regardless of requireAuth (T-08-04 / T-08-07 / D-07).
-  app.post('/settings', sameOriginGuard(config), express.urlencoded({ extended: false }), (req, res) => {
-    handleSettingsSave(config, req, res);
-  });
+  // requireAuthGate sits AFTER sameOriginGuard and BEFORE urlencoded+handler (T-08-06 ordering).
+  app.post(
+    '/settings',
+    sameOriginGuard(config),
+    requireAuthGate(config),
+    express.urlencoded({ extended: false }),
+    (req, res) => {
+      handleSettingsSave(config, req, res);
+    },
+  );
 
   // Rotate route: generates a fresh app key, persists it, reveals it exactly once
   // in the response body (one-time reveal, SEC-01 / D-02 / T-08-03). No redirect to
   // GET / (which must never show the key). Old key immediately stops authenticating
   // against /api — operator must update Sonarr AND Radarr (T-08-06).
-  app.post('/settings/rotate-key', sameOriginGuard(config), express.urlencoded({ extended: false }), (req, res) => {
-    const newKey = generateApiKey();
-    updateSettings(config, { apiKey: newKey });
-    res.type('html').send(renderRotatedPage(newKey, config));
-  });
+  // requireAuthGate sits AFTER sameOriginGuard (T-08-10: rotate is auth-gated when ON).
+  app.post(
+    '/settings/rotate-key',
+    sameOriginGuard(config),
+    requireAuthGate(config),
+    express.urlencoded({ extended: false }),
+    (req, res) => {
+      const newKey = generateApiKey();
+      updateSettings(config, { apiKey: newKey });
+      res.type('html').send(renderRotatedPage(newKey, config));
+    },
+  );
 
   const browseCtx: BrowseContext = {
     config,
@@ -227,20 +356,34 @@ export function createServer(config: Config, deps: ServerDeps = {}): Express {
     radarrFetch: deps.radarrFetch,
   };
   // GET /browse: search landing — makes NO *arr call (no sonarrClient/radarrClient),
-  // so it stays open (no guard required).
+  // so it stays open (no guard required). Read-only; not auth-gated (D-07).
   app.get('/browse', (req, res) => handleBrowsePage(browseCtx, req, res));
 
   // Credential-backed browse lookup GETs: hostAllowlistGuard (Host-allowlist ONLY,
   // no Origin check — browsers omit Origin on top-level GET navigations) to block
   // DNS-rebinding reads of *arr metadata (T-08-08 / D-07).
-  app.get('/browse/add', hostAllowlistGuard(config), (req, res) => handleAddPage(browseCtx, req, res));
-  // Credential-backed browse POSTs: full sameOriginGuard (Host + Origin/Host equality).
-  app.post('/browse/add', sameOriginGuard(config), express.urlencoded({ extended: false }), (req, res) =>
-    handleAddSubmit(browseCtx, req, res),
+  // requireAuthGate sits AFTER hostAllowlistGuard on these two routes (T-08-06 / T-08-12).
+  app.get('/browse/add', hostAllowlistGuard(config), requireAuthGate(config), (req, res) =>
+    handleAddPage(browseCtx, req, res),
   );
-  app.get('/browse/add-movie', hostAllowlistGuard(config), (req, res) => handleAddMoviePage(browseCtx, req, res));
-  app.post('/browse/add-movie', sameOriginGuard(config), express.urlencoded({ extended: false }), (req, res) =>
-    handleAddMovieSubmit(browseCtx, req, res),
+  // Credential-backed browse POSTs: full sameOriginGuard (Host + Origin/Host equality),
+  // then requireAuthGate, then urlencoded parser, then handler (T-08-12 ordering).
+  app.post(
+    '/browse/add',
+    sameOriginGuard(config),
+    requireAuthGate(config),
+    express.urlencoded({ extended: false }),
+    (req, res) => handleAddSubmit(browseCtx, req, res),
+  );
+  app.get('/browse/add-movie', hostAllowlistGuard(config), requireAuthGate(config), (req, res) =>
+    handleAddMoviePage(browseCtx, req, res),
+  );
+  app.post(
+    '/browse/add-movie',
+    sameOriginGuard(config),
+    requireAuthGate(config),
+    express.urlencoded({ extended: false }),
+    (req, res) => handleAddMovieSubmit(browseCtx, req, res),
   );
 
   // Sonarr talks to one /api endpoint for both roles: Newznab requests carry
