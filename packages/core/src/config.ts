@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Generates a cryptographically random API key.
@@ -40,9 +41,26 @@ export function loadSettings<T extends object>(settingsPath: string, defaults: T
 /**
  * Persists settings to a JSON file (pretty-printed, trailing newline).
  *
+ * Uses an atomic tmp+rename strategy (D-07): writes to a temp file in the
+ * SAME directory as the target, then renames over it. Because the temp file
+ * is on the same filesystem, rename(2) is atomic — an interrupted write
+ * leaves the previous settings.json intact. The temp file is cleaned up on
+ * rename failure so no orphaned .tmp is ever left behind.
+ *
  * @param settingsPath - Absolute path to the settings JSON file.
  * @param settings - The settings object to write.
  */
 export function saveSettings<T>(settingsPath: string, settings: T): void {
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+  const dir = path.dirname(settingsPath);
+  const tmp = path.join(
+    dir,
+    `.${path.basename(settingsPath)}.${crypto.randomBytes(6).toString('hex')}.tmp`,
+  );
+  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n');
+  try {
+    fs.renameSync(tmp, settingsPath);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* tmp already gone — no-op */ }
+    throw err;
+  }
 }
