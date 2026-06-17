@@ -13,6 +13,10 @@ export function renderSettingsPage(config: Config, saved = false): string {
   const releaseQualityOptions = RELEASE_QUALITIES.map(
     (q) => `<option value="${q}"${q === s.releaseQuality ? ' selected' : ''}>${q}</option>`,
   ).join('');
+  // Masked indicator for the app API key: never render the value in the HTML (SEC-01 / T-08-01).
+  const apiKeyStatus = s.apiKey
+    ? 'API key configured — ••••••••'
+    : 'No API key set — use Rotate to generate one';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,6 +32,9 @@ export function renderSettingsPage(config: Config, saved = false): string {
   .saved { background: #e6f4ea; border: 1px solid #b7dfc2; padding: .5rem .75rem; border-radius: 4px; }
   .hint { color: #666; font-size: .85rem; font-weight: 400; }
   code { background: #f4f4f4; padding: .1rem .3rem; border-radius: 3px; }
+  .key-indicator { display: flex; align-items: center; gap: 1rem; margin-top: .25rem; }
+  .key-indicator span { font-size: .95rem; color: #555; flex: 1; }
+  .rotate-btn { margin-top: 0; padding: .35rem 1rem; font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -36,7 +43,9 @@ export function renderSettingsPage(config: Config, saved = false): string {
 ${saved ? '<p class="saved">Settings saved.</p>' : ''}
 <form method="post" action="/settings">
   <label>API key <span class="hint">(used by Sonarr/Radarr for both the indexer and download client)</span>
-    <input name="apiKey" value="${escapeHtml(s.apiKey)}">
+    <div class="key-indicator">
+      <span>${escapeHtml(apiKeyStatus)}</span>
+    </div>
   </label>
   <label>Download directory <span class="hint">(in-progress downloads)</span>
     <input name="downloadDir" value="${escapeHtml(s.downloadDir)}">
@@ -70,25 +79,67 @@ ${saved ? '<p class="saved">Settings saved.</p>' : ''}
     <input name="cookiesFile" value="${escapeHtml(s.cookiesFile)}" placeholder="/config/cookies.txt">
   </label>
   <h2>Sonarr / Radarr</h2>
-  <label>Sonarr URL <span class="hint">(enables “Add to Sonarr” in browse; optional)</span>
+  <label>Sonarr URL <span class="hint">(enables "Add to Sonarr" in browse; optional)</span>
     <input name="sonarrUrl" value="${escapeHtml(s.sonarrUrl)}" placeholder="http://sonarr:8989">
   </label>
-  <label>Sonarr API key <span class="hint">(optional)</span>
-    <input name="sonarrApiKey" value="${escapeHtml(s.sonarrApiKey)}">
+  <label>Sonarr API key <span class="hint">(leave blank to keep existing; optional)</span>
+    <input name="sonarrApiKey" value="" placeholder="leave blank to keep existing">
+    <span class="hint">${s.sonarrApiKey ? 'A key is set — re-enter to replace' : 'No key set'}</span>
   </label>
-  <label>Radarr URL <span class="hint">(enables “Add to Radarr” for movies; optional)</span>
+  <label>Radarr URL <span class="hint">(enables "Add to Radarr" for movies; optional)</span>
     <input name="radarrUrl" value="${escapeHtml(s.radarrUrl)}" placeholder="http://radarr:7878">
   </label>
-  <label>Radarr API key <span class="hint">(optional)</span>
-    <input name="radarrApiKey" value="${escapeHtml(s.radarrApiKey)}">
+  <label>Radarr API key <span class="hint">(leave blank to keep existing; optional)</span>
+    <input name="radarrApiKey" value="" placeholder="leave blank to keep existing">
+    <span class="hint">${s.radarrApiKey ? 'A key is set — re-enter to replace' : 'No key set'}</span>
   </label>
   <button type="submit">Save</button>
 </form>
+<h2>API key</h2>
+<p>Generate a fresh API key and copy it once. The old key immediately stops working — update Sonarr AND Radarr with the new key right away.</p>
+<form method="post" action="/settings/rotate-key">
+  <button type="submit" class="rotate-btn">Rotate API key</button>
+</form>
 <h2>Hooking up Sonarr / Radarr</h2>
 <p>Indexer (Newznab): URL <code>http://&lt;this-host&gt;:${config.port}</code>, API path <code>/api</code>, API key as above.
-Turn <strong>off</strong> “Enable RSS” and “Enable Automatic Search” — this indexer is for Interactive Search.<br>
+Turn <strong>off</strong> "Enable RSS" and "Enable Automatic Search" — this indexer is for Interactive Search.<br>
 Download client (SABnzbd): host <code>&lt;this-host&gt;</code>, port <code>${config.port}</code>, API key as above,
 category <code>sonarr</code> (Sonarr) or <code>radarr</code> (Radarr).</p>
+</body>
+</html>`;
+}
+
+/**
+ * Render the one-time post-rotate reveal page. The new key is shown exactly once here;
+ * it does not appear on any subsequent GET / (SEC-01 / D-02 / T-08-03).
+ */
+export function renderRotatedPage(newKey: string, config: Config): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bridgarr-youtube — New API key</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  .reveal { background: #fff3cd; border: 1px solid #ffc107; padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+  .key { font-family: monospace; font-size: 1.1rem; word-break: break-all; user-select: all; }
+  .warning { color: #c00; font-weight: 600; }
+  button { margin-top: 1rem; padding: .5rem 1.5rem; font: inherit; cursor: pointer; }
+  code { background: #f4f4f4; padding: .1rem .3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>bridgarr-youtube — New API key generated</h1>
+<div class="reveal">
+  <p class="warning">Copy this key now — it will not be shown again.</p>
+  <p class="key">${escapeHtml(newKey)}</p>
+</div>
+<p class="warning">Update Sonarr AND Radarr with this new key now — the old key has stopped working.</p>
+<p>Indexer (Newznab): URL <code>http://&lt;this-host&gt;:${config.port}</code>, API path <code>/api</code>, use the key above.<br>
+Download client (SABnzbd): host <code>&lt;this-host&gt;</code>, port <code>${config.port}</code>, use the key above.</p>
+<a href="/">← Back to settings</a>
 </body>
 </html>`;
 }
@@ -141,13 +192,17 @@ export function handleSettingsSave(config: Config, req: Request, res: Response):
   if (titleFilter !== undefined) patch.titleFilter = titleFilter === 'on';
   const apiKey = str('apiKey');
   if (apiKey) patch.apiKey = apiKey; // empty string would lock Sonarr out — ignore
+  // *arr keys: blank = keep existing (D-04), mirroring the app-key guard above.
+  // CSRF / host-allowlist enforcement runs as route middleware in server.ts before this handler.
+  const sonarrApiKey = str('sonarrApiKey');
+  if (sonarrApiKey) patch.sonarrApiKey = sonarrApiKey;
+  const radarrApiKey = str('radarrApiKey');
+  if (radarrApiKey) patch.radarrApiKey = radarrApiKey;
   for (const field of [
     'downloadDir',
     'completeDir',
     'sonarrUrl',
-    'sonarrApiKey',
     'radarrUrl',
-    'radarrApiKey',
     'cookiesFile',
   ] as const) {
     const value = str(field);
