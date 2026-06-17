@@ -44,6 +44,26 @@ describe('config', () => {
     expect(config.settings.cookiesFile).toBe('');
   });
 
+  it('defaults requireAuth to false (SEC-02 / D-05 — gate off, LAN-trust model preserved)', () => {
+    const config = loadConfig({ DATA_DIR: dataDir });
+
+    expect(config.settings.requireAuth).toBe(false);
+  });
+
+  it('an existing settings.json without requireAuth inherits false on reload (merge-over-defaults)', () => {
+    // First run — creates settings.json on disk.
+    loadConfig({ DATA_DIR: dataDir });
+    // Simulate a pre-08-02 install: strip the requireAuth field and rewrite.
+    const settingsPath = path.join(dataDir, 'settings.json');
+    const existing = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Record<string, unknown>;
+    delete existing.requireAuth;
+    fs.writeFileSync(settingsPath, JSON.stringify(existing));
+
+    // Reload — the merge-over-defaults should supply requireAuth: false.
+    const reloaded = loadConfig({ DATA_DIR: dataDir });
+    expect(reloaded.settings.requireAuth).toBe(false);
+  });
+
   it('respects PORT and HOST env overrides', () => {
     const config = loadConfig({ DATA_DIR: dataDir, PORT: '9000', HOST: '127.0.0.1' });
 
