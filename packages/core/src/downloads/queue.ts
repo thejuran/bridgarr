@@ -27,6 +27,7 @@ export interface DownloadJob {
  */
 export class DownloadQueue {
   private readonly jobs = new Map<string, DownloadJob>();
+  private removeCallback?: (nzoId: string) => void;
 
   add(payload: NzbPayload, category: string): DownloadJob {
     const job: DownloadJob = {
@@ -64,8 +65,21 @@ export class DownloadQueue {
       .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
   }
 
+  /**
+   * Register a callback invoked synchronously inside `remove()` when a job is
+   * actually deleted (i.e., `jobs.delete` returns true). The callback receives
+   * only the nzoId string — core stays process-agnostic; process-lifecycle
+   * handling (e.g. sending a termination signal) is the app's responsibility.
+   * Fires exactly once per real deletion, before `remove()` returns.
+   */
+  setOnRemove(cb: (nzoId: string) => void): void {
+    this.removeCallback = cb;
+  }
+
   remove(nzoId: string): boolean {
-    return this.jobs.delete(nzoId);
+    const removed = this.jobs.delete(nzoId);
+    if (removed) this.removeCallback?.(nzoId);
+    return removed;
   }
 
   /** Oldest job still waiting to start, if any. */

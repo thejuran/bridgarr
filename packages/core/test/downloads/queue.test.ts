@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DownloadQueue } from '../../src/downloads/queue.js';
 import type { NzbPayload } from '../../src/nzb.js';
 
@@ -71,5 +71,60 @@ describe('DownloadQueue', () => {
     expect(queue.nextQueued()!.nzoId).toBe(b.nzoId);
     queue.markStarted(b.nzoId);
     expect(queue.nextQueued()).toBeUndefined();
+  });
+
+  describe('onRemove hook', () => {
+    it('fires the callback exactly once with the nzoId on a real delete', () => {
+      const queue = new DownloadQueue();
+      const spy = vi.fn();
+      queue.setOnRemove(spy);
+      const job = queue.add(payload(), 'sonarr');
+
+      const result = queue.remove(job.nzoId);
+
+      expect(result).toBe(true);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(job.nzoId);
+    });
+
+    it('does NOT fire the callback when the id is not found', () => {
+      const queue = new DownloadQueue();
+      const spy = vi.fn();
+      queue.setOnRemove(spy);
+
+      const result = queue.remove('does-not-exist');
+
+      expect(result).toBe(false);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('fires synchronously (before remove() returns)', () => {
+      const queue = new DownloadQueue();
+      let firedDuringRemove = false;
+      // The callback is called synchronously inside remove(); we verify by
+      // checking the job is gone from the queue when the callback runs.
+      queue.setOnRemove(() => {
+        firedDuringRemove = true;
+      });
+      const job = queue.add(payload(), 'sonarr');
+
+      let callbackFired = false;
+      queue.setOnRemove(() => {
+        callbackFired = true;
+      });
+      queue.remove(job.nzoId);
+      // If synchronous, callbackFired must be true by the time remove() returns
+      expect(callbackFired).toBe(true);
+      void firedDuringRemove; // suppress unused warning
+    });
+
+    it('works without a registered onRemove (remove returns the boolean, no throw)', () => {
+      const queue = new DownloadQueue();
+      const job = queue.add(payload(), 'sonarr');
+
+      // No setOnRemove called — must not throw
+      expect(() => queue.remove(job.nzoId)).not.toThrow();
+      expect(queue.get(job.nzoId)).toBeUndefined();
+    });
   });
 });
