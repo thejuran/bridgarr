@@ -476,6 +476,7 @@ describe('DownloadRunner', () => {
     const j2 = queue.add(payload('J2'), 'sonarr');
     runner.tick();
     calls[1]!.proc.emit('close', 1);
+    void j2;
 
     // cycle 3: fail (no output)
     const j3 = queue.add(payload('J3'), 'sonarr');
