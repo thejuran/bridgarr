@@ -47,6 +47,10 @@ export function loadSettings<T extends object>(settingsPath: string, defaults: T
  * leaves the previous settings.json intact. The temp file is cleaned up on
  * rename failure so no orphaned .tmp is ever left behind.
  *
+ * The temp file is created mode 0o600 (owner read/write only): settings.json
+ * carries credentials (API keys), so it must never be world-readable during
+ * the write→rename window or if a crash orphans the temp before rename.
+ *
  * @param settingsPath - Absolute path to the settings JSON file.
  * @param settings - The settings object to write.
  */
@@ -56,7 +60,7 @@ export function saveSettings<T>(settingsPath: string, settings: T): void {
     dir,
     `.${path.basename(settingsPath)}.${crypto.randomBytes(6).toString('hex')}.tmp`,
   );
-  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n');
+  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n', { mode: 0o600 });
   try {
     fs.renameSync(tmp, settingsPath);
   } catch (err) {

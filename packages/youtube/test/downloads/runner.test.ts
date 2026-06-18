@@ -363,6 +363,50 @@ describe('DownloadRunner', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('(c3) delete DURING the post-move stat — final re-check deletes dest, no markCompleted', async () => {
+    // Closes the residual stat-window TOCTOU: a delete landing while fsp.stat(dest)
+    // is in flight must still be caught by the re-check that now sits AFTER the stat
+    // and immediately before markCompleted (no await between them).
+    updateSettings(config, { concurrency: 1 });
+    queue.setOnRemove((id) => runner.onRemove(id));
+    const a = queue.add(payload('A'), 'sonarr');
+
+    runner.tick();
+    writeOutput(a.nzoId, 'A');
+
+    // Spy on fsp.stat so the delete fires DURING the post-move stat ONLY — i.e.
+    // the stat on the dest path inside completeDir, NOT the earlier pickOutput
+    // stats on the jobDir (which would land in the pre-move window instead and
+    // make this a vacuous test). Scope by checking the stat'd path is under
+    // completeDir, so the delete reproduces the exact stat-window TOCTOU.
+    const realStat = fsp.stat.bind(fsp);
+    const destRoot = config.settings.completeDir;
+    const statSpy = vi.spyOn(fsp, 'stat').mockImplementation(async (p) => {
+      const result = await realStat(p as string);
+      if (typeof p === 'string' && p.startsWith(destRoot)) {
+        // We are inside the post-move stat(dest) await — fire the delete here.
+        queue.remove(a.nzoId);
+      }
+      return result;
+    });
+
+    calls[0]!.proc.emit('close', 0);
+    await runner.idle();
+
+    statSpy.mockRestore();
+
+    const destFile = path.join(config.settings.completeDir, 'sonarr', 'A.mp4');
+    // The final re-check (after stat) must have deleted the moved file
+    expect(fs.existsSync(destFile)).toBe(false);
+    // jobDir also removed
+    expect(fs.existsSync(path.join(config.settings.downloadDir, a.nzoId))).toBe(false);
+    // job was removed; never marked completed
+    expect(queue.get(a.nzoId)).toBeUndefined();
+    // no phantom job
+    runner.tick();
+    expect(calls).toHaveLength(1);
+  });
+
   it('(c2) delete between entry check and move — pre-move re-check discards cleanly', async () => {
     updateSettings(config, { concurrency: 1 });
     queue.setOnRemove((id) => runner.onRemove(id));

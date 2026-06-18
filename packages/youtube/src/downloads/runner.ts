@@ -266,17 +266,23 @@ export class DownloadRunner {
 
     await move(file, dest);
 
+    // stat BEFORE the final liveness check so no async suspension point sits
+    // between the check and markCompleted (closes the residual stat-window
+    // TOCTOU: a delete landing during fsp.stat would otherwise leave the moved
+    // file orphaned in completeDir with markCompleted silently no-op'ing).
+    const { size } = await fsp.stat(dest);
+
     // POST-MOVE re-check (HIGH #1 fix — close the residual TOCTOU window): if
-    // the job was deleted WHILE the move was in flight, the file already exists
-    // at dest (rename completed / EXDEV copyFile completed) — delete it and the
-    // jobDir, and do NOT markCompleted.
+    // the job was deleted WHILE the move/stat was in flight, the file already
+    // exists at dest (rename completed / EXDEV copyFile completed) — delete it
+    // and the jobDir, and do NOT markCompleted. This is the last check before
+    // markCompleted and is immediately followed by it (no await in between).
     if (!this.queue.get(job.nzoId)) {
       await fsp.rm(dest, { force: true });
       await fsp.rm(jobDir, { recursive: true, force: true });
       return;
     }
 
-    const { size } = await fsp.stat(dest);
     this.queue.markCompleted(job.nzoId, dest, size);
     await fsp.rm(jobDir, { recursive: true, force: true });
     logger.info({ nzoId: job.nzoId, dest, size }, 'download completed');
